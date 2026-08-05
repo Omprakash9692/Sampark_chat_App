@@ -48,10 +48,10 @@ export const Layout = () => {
   const isAdminUser = user?.role === 'Admin';
 
   return (
-    <div className="h-screen w-screen flex bg-[linear-gradient(180deg,#fcfcfb_0%,#f5f3ef_100%)] text-slate-800 overflow-hidden font-sans transition-colors duration-300">
+    <div className="h-screen w-screen flex bg-[#f0f2f5] text-slate-800 overflow-hidden font-sans transition-colors duration-300">
       
       {/* 1. Global Navigation Strip (Thin Sidebar) - Desktop */}
-      <aside className="hidden sm:flex flex-col items-center justify-between w-18 py-6 bg-white/90 backdrop-blur-xl border-r border-slate-200/80 shadow-[0_10px_40px_rgba(15,23,42,0.04)] flex-shrink-0 z-20">
+      <aside className="hidden sm:flex flex-col items-center justify-between w-18 py-6 bg-[#f0f2f5] border-r border-slate-200/80 flex-shrink-0 z-20">
         <div className="flex flex-col items-center gap-6 w-full">
           {/* Navigation Links */}
           <div className="flex flex-col gap-4.5 w-full items-center">
@@ -67,7 +67,7 @@ export const Layout = () => {
                     setMobileSidebarOpen(true);
                   }
                 }}
-                className={`p-3 rounded-xl cursor-pointer transition-colors ${isChatRoute ? 'bg-slate-900 text-white shadow-[0_8px_24px_rgba(15,23,42,0.16)]' : 'text-slate-400 hover:text-slate-700 hover:bg-slate-50'}`}
+                className={`p-3 rounded-xl cursor-pointer transition-colors ${isChatRoute ? 'bg-[#00a884] text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/60'}`}
               >
                 <MessageSquare className="h-5.5 w-5.5" />
               </button>
@@ -75,7 +75,7 @@ export const Layout = () => {
 
             {isAdminUser && (
               <Link to="/admin">
-                <button className={`p-3 rounded-xl cursor-pointer transition-colors ${isAdminRoute ? 'bg-slate-900 text-white shadow-[0_8px_24px_rgba(15,23,42,0.16)]' : 'text-slate-400 hover:text-slate-700 hover:bg-slate-50'}`}>
+                <button className={`p-3 rounded-xl cursor-pointer transition-colors ${isAdminRoute ? 'bg-[#00a884] text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/60'}`}>
                   <ShieldCheck className="h-5.5 w-5.5" />
                 </button>
               </Link>

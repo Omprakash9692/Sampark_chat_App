@@ -6,7 +6,7 @@ import {
   Phone, Search, Info, MoreVertical, Send, Smile, Paperclip, 
   Mic, Image as ImageIcon, FileText, Check, CheckCheck, Trash2, Edit2, 
   CornerUpLeft, Reply, Forward, Pin, Play, Pause, X, Trash, Sparkles, Download, Video, Lock,
-  ChevronDown, Copy, Star
+  ChevronDown, Copy, Star, Plus
 } from 'lucide-react';
 import { useChat } from '../../context/ChatContext';
 import { useAuth } from '../../context/AuthContext';
@@ -672,10 +672,10 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen }) => {
     : null;
 
   return (
-    <div className="flex-1 flex flex-col h-full overflow-hidden bg-[linear-gradient(180deg,rgba(255,255,255,0.72)_0%,rgba(248,250,252,0.92)_100%)]">
+    <div className="flex-1 flex flex-col h-full overflow-hidden bg-whatsapp-wallpaper">
       
       {/* 1. Top Header */}
-      <div className="h-16 px-4 border-b border-slate-200/80 bg-white/82 backdrop-blur-xl flex items-center justify-between z-10 shrink-0">
+      <div className="h-16 px-4 border-b border-[#e9edef] bg-[#f0f2f5] flex items-center justify-between z-10 shrink-0 select-none">
         <div className="flex items-center gap-3 min-w-0">
           <Avatar 
             src={isDirect ? recipient?.avatar : group?.avatar} 
@@ -685,10 +685,10 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen }) => {
             color={isDirect ? recipient?.avatarColor : group?.avatarColor}
           />
           <div className="text-left min-w-0">
-            <h4 className="text-sm font-bold text-slate-950 truncate">
+            <h4 className="text-sm font-bold text-[#111b21] truncate">
               {chatTitle}
             </h4>
-            <p className={`text-[10px] truncate ${isDirect && recipient?.isOnline ? 'text-emerald-500 font-semibold' : 'text-slate-450'}`}>
+            <p className={`text-[10px] truncate ${isDirect && recipient?.isOnline ? 'text-[#00a884] font-semibold' : 'text-[#667781]'}`}>
               {chatSubtitle}
             </p>
           </div>
@@ -816,7 +816,7 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen }) => {
                 <React.Fragment key={msg.id}>
                   {showDateSeparator && (
                     <div className="flex justify-center my-4 select-none w-full">
-                      <span className="px-3.5 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-[10px] font-black uppercase tracking-wider shadow-xs border border-slate-200/50 dark:border-slate-800/80">
+                      <span className="px-3 py-1 rounded-lg bg-white text-[#667781] text-[11px] font-semibold tracking-wide shadow-xs border border-slate-200/40 uppercase">
                         {formatDateSeparator(msg.timestamp)}
                       </span>
                     </div>
@@ -1032,10 +1032,10 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen }) => {
 
                     {/* Bubble background classes */}
                     <div className={`
-                      px-4 py-2.5 rounded-2xl text-xs sm:text-xs leading-relaxed max-w-full text-left
+                      px-3.5 py-2 rounded-2xl text-xs sm:text-xs leading-relaxed max-w-full text-left shadow-[0_1px_0.5px_rgba(11,20,26,0.13)]
                       ${isMe 
-                        ? 'bg-slate-900 text-white rounded-tr-xs shadow-[0_14px_32px_rgba(15,23,42,0.16)]' 
-                        : 'bg-white border border-slate-200/80 text-slate-850 rounded-tl-xs shadow-[0_8px_24px_rgba(15,23,42,0.04)]'
+                        ? 'bg-[#d9fdd3] text-[#111b21] rounded-tr-xs' 
+                        : 'bg-white text-[#111b21] rounded-tl-xs border border-slate-200/50'
                       }
                       ${msg.isDeleted ? 'italic text-slate-400 bg-slate-50 border-dashed' : ''}
                     `}>
@@ -1280,7 +1280,7 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen }) => {
               </div>
             </div>
           ) : (
-            <div className="flex items-center gap-1.5 relative w-full bg-[#1E1E1E] rounded-full px-2 py-1.5 shadow-sm">
+            <div className="p-3 bg-[#f0f2f5] border-t border-[#e9edef] select-none w-full">
               <input
                 ref={imageInputRef}
                 type="file"
@@ -1296,109 +1296,120 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen }) => {
                 onChange={handleFileSelection}
               />
 
-              {/* Attachments dropdown trigger */}
-              <div className="relative shrink-0" ref={attachmentMenuRef}>
-                <Tooltip content="Attach File">
-                  <button
-                    onClick={() => setShowAttachmentMenu(!showAttachmentMenu)}
-                    className="p-2 rounded-full text-slate-300 hover:text-white hover:bg-white/10 cursor-pointer transition-colors flex items-center justify-center h-10 w-10"
-                  >
-                    <span className="text-2xl leading-none font-light mb-1">+</span>
-                  </button>
-                </Tooltip>
+              {/* Single Unified Pill Capsule */}
+              <div className="flex items-center gap-1.5 w-full bg-white rounded-full px-3 py-1.5 border border-slate-200/80 shadow-2xs">
 
-                <AnimatePresence>
-                  {showAttachmentMenu && (
-                    <motion.div
-                      initial={{ opacity: 0, scale: 0.95, y: -10 }}
-                      animate={{ opacity: 1, scale: 1, y: 0 }}
-                      exit={{ opacity: 0, scale: 0.95, y: -10 }}
-                      className="absolute bottom-14 left-0 w-44 rounded-xl border border-slate-700 bg-slate-800 p-1.5 shadow-xl z-20 text-xs text-left"
-                    >
-                      <button
-                        type="button"
-                        onClick={() => handleSimulateAttachment('image')}
-                        className="flex items-center gap-2.5 px-3 py-2 w-full text-slate-200 hover:bg-slate-700 rounded-lg cursor-pointer transition-colors font-semibold"
-                      >
-                        <ImageIcon className="h-4 w-4 text-emerald-400" /> Share Image
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleSimulateAttachment('pdf')}
-                        className="flex items-center gap-2.5 px-3 py-2 w-full text-slate-200 hover:bg-slate-700 rounded-lg cursor-pointer transition-colors font-semibold"
-                      >
-                        <FileText className="h-4 w-4 text-rose-400" /> Share PDF Document
-                      </button>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-
-              {/* Emoji menu trigger */}
-              <div className="relative shrink-0" ref={emojiPickerRef}>
-                <Tooltip content="Emoji menu">
-                  <button 
-                    onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                    className="p-2 rounded-full text-slate-300 hover:text-white hover:bg-white/10 cursor-pointer transition-colors flex items-center justify-center h-10 w-10"
-                  >
-                    <Smile className="h-5 w-5" />
-                  </button>
-                </Tooltip>
-
-                <AnimatePresence>
-                  {showEmojiPicker && (
-                    <motion.div
-                      initial={{ opacity: 0, scale: 0.95, y: 10 }}
-                      animate={{ opacity: 1, scale: 1, y: 0 }}
-                      exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                      className="absolute bottom-14 left-0 z-30"
-                    >
-                      <EmojiPicker
-                        onEmojiClick={(emojiData) => {
-                          setInputText(prev => prev + emojiData.emoji);
-                          setShowEmojiPicker(false);
-                        }}
-                        skinTonesDisabled={false}
-                        searchPlaceholder="Search emoji..."
-                        height={400}
-                        width={320}
-                        previewConfig={{ showPreview: false }}
-                        theme="dark"
-                      />
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-
-              {/* Input field */}
-              <textarea
-                value={inputText}
-                onChange={handleInputChange}
-                onKeyDown={handleKeyPress}
-                placeholder="Type a message"
-                className="flex-grow bg-transparent text-sm p-2 outline-none text-white placeholder-slate-400 max-h-[100px] min-h-[24px] resize-none leading-relaxed no-scrollbar self-center"
-                rows={1}
-              />
-
-              {/* Send or Voice Record */}
-              <div className="shrink-0 flex items-center pr-1">
-                {inputText.trim() ? (
-                  <button
-                    onClick={handleSend}
-                    className="p-2 rounded-full text-emerald-400 hover:text-emerald-300 hover:bg-white/10 cursor-pointer transition-colors flex items-center justify-center h-10 w-10"
-                  >
-                    <Send className="h-5 w-5 fill-current" />
-                  </button>
-                ) : (
-                  <Tooltip content="Hold to Record">
+                {/* 1. Plus (+) Attachments trigger */}
+                <div className="relative shrink-0" ref={attachmentMenuRef}>
+                  <Tooltip content="Attach File">
                     <button
-                      onClick={startRecording}
-                      className="p-2 rounded-full text-slate-300 hover:text-white hover:bg-white/10 cursor-pointer transition-colors flex items-center justify-center h-10 w-10"
+                      type="button"
+                      onClick={() => setShowAttachmentMenu(!showAttachmentMenu)}
+                      className="p-1.5 rounded-full text-[#54656f] hover:text-[#111b21] hover:bg-slate-100 cursor-pointer transition-colors flex items-center justify-center h-8 w-8"
                     >
-                      <Mic className="h-5 w-5" />
+                      <Plus className="h-5 w-5" />
                     </button>
                   </Tooltip>
-                )}
+
+                  <AnimatePresence>
+                    {showAttachmentMenu && (
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                        className="absolute bottom-12 left-0 w-48 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl z-30 text-xs text-left"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => handleSimulateAttachment('image')}
+                          className="flex items-center gap-2.5 px-3 py-2 w-full text-slate-800 hover:bg-slate-100 rounded-lg cursor-pointer transition-colors font-semibold"
+                        >
+                          <ImageIcon className="h-4 w-4 text-emerald-600" /> Share Image
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleSimulateAttachment('pdf')}
+                          className="flex items-center gap-2.5 px-3 py-2 w-full text-slate-800 hover:bg-slate-100 rounded-lg cursor-pointer transition-colors font-semibold"
+                        >
+                          <FileText className="h-4 w-4 text-rose-500" /> Share PDF Document
+                        </button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+
+                {/* 2. Emoji menu trigger */}
+                <div className="relative shrink-0" ref={emojiPickerRef}>
+                  <Tooltip content="Emoji menu">
+                    <button 
+                      type="button"
+                      onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                      className="p-1.5 rounded-full text-[#54656f] hover:text-[#111b21] hover:bg-slate-100 cursor-pointer transition-colors flex items-center justify-center h-8 w-8"
+                    >
+                      <Smile className="h-5 w-5" />
+                    </button>
+                  </Tooltip>
+
+                  <AnimatePresence>
+                    {showEmojiPicker && (
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                        className="absolute bottom-12 left-0 z-30"
+                      >
+                        <EmojiPicker
+                          onEmojiClick={(emojiData) => {
+                            setInputText(prev => prev + emojiData.emoji);
+                            setShowEmojiPicker(false);
+                          }}
+                          skinTonesDisabled={false}
+                          searchPlaceholder="Search emoji..."
+                          height={400}
+                          width={320}
+                          previewConfig={{ showPreview: false }}
+                          theme="light"
+                        />
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+
+                {/* 3. Text Input Field inside pill */}
+                <div className="flex-1 min-w-0 flex items-center px-1">
+                  <textarea
+                    value={inputText}
+                    onChange={handleInputChange}
+                    onKeyDown={handleKeyPress}
+                    placeholder="Type a message"
+                    className="w-full bg-transparent text-xs outline-none text-[#111b21] placeholder-[#667781] max-h-[100px] min-h-[20px] resize-none leading-relaxed no-scrollbar font-medium py-1"
+                    rows={1}
+                  />
+                </div>
+
+                {/* 4. Mic / Send Icon on far right inside pill */}
+                <div className="shrink-0 flex items-center">
+                  {inputText.trim() ? (
+                    <button
+                      type="button"
+                      onClick={handleSend}
+                      className="p-2 rounded-full bg-[#00a884] hover:bg-[#008f6f] text-white cursor-pointer transition-all shadow-xs flex items-center justify-center h-8 w-8 transform active:scale-95 ml-1"
+                    >
+                      <Send className="h-3.5 w-3.5 fill-current ml-0.5" />
+                    </button>
+                  ) : (
+                    <Tooltip content="Hold to Record">
+                      <button
+                        type="button"
+                        onClick={startRecording}
+                        className="p-1.5 rounded-full text-[#54656f] hover:text-[#111b21] hover:bg-slate-100 cursor-pointer transition-colors flex items-center justify-center h-8 w-8"
+                      >
+                        <Mic className="h-5 w-5" />
+                      </button>
+                    </Tooltip>
+                  )}
+                </div>
+
               </div>
             </div>
           )}

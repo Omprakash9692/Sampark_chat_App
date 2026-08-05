@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
-  Search, Plus, Pin, Check, CheckCheck, Users, MessageCircle, MoreVertical, 
+  Search, Plus, Pin, Check, CheckCheck, Users, MessageCircle, MessageSquare, MoreVertical, 
   Camera, X, VolumeX, Mail, BellOff, UserPlus, ArrowLeft, ChevronRight,
-  ChevronDown, Archive, Star, Trash2, Eraser
+  ChevronDown, Archive, Star, Trash2, Eraser, SquarePen, SlidersHorizontal, CircleDashed, Settings
 } from 'lucide-react';
 import { useChat } from '../../context/ChatContext';
 import { useAuth } from '../../context/AuthContext';
@@ -20,6 +21,7 @@ export const SidebarLeft = ({ closeMobileSidebar }) => {
   } = useChat();
   const { user, allUsers } = useAuth();
   const { showToast } = useNotifications();
+  const navigate = useNavigate();
 
   // Search & Filter state
   const [searchQuery, setSearchQuery] = useState('');
@@ -231,47 +233,46 @@ export const SidebarLeft = ({ closeMobileSidebar }) => {
 
   return (
     <>
-      <div className="flex flex-col h-full bg-white dark:bg-slate-900 border-r border-slate-200/80 dark:border-slate-800 select-none relative" ref={menuContainerRef}>
+      <div className="flex flex-col h-full bg-[#f0f4f8] border-r border-slate-200/80 select-none relative" ref={menuContainerRef}>
         
         {/* Top Header */}
-        <div className="p-4 border-b border-slate-200/80 dark:border-slate-800 space-y-3.5 shrink-0">
-          <div className="flex items-center">
+        <div className="p-4 bg-[#f0f4f8] border-b border-slate-200/80 space-y-3 shrink-0">
+          <div className="flex items-center justify-between">
             <div className="text-left">
-              <h1 className="text-lg font-black tracking-tight text-slate-950 dark:text-white uppercase font-sans leading-none">
-                SAMPARK
+              <h1 className="text-xl font-bold tracking-tight text-[#111b21] font-sans leading-none">
+                Chats
               </h1>
-              <p className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-0.5">
-                Chats & Groups
+              <p className="text-xs font-medium text-[#667781] mt-1">
+                Recent conversations
               </p>
             </div>
           </div>
 
           {/* Global Search Bar */}
           <div className="relative">
-            <Search className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 h-4.5 w-4.5 my-auto" />
+            <Search className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#667781] h-4.5 w-4.5 my-auto" />
             <input
               type="text"
-              placeholder="Search or start a new chat..."
+              placeholder="Search or start new chat"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="block w-full rounded-xl bg-slate-100/90 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-xs py-2.5 pl-10 pr-9 outline-none text-slate-800 dark:text-white transition-all font-semibold"
+              className="block w-full rounded-full bg-[#dce4ec] border-0 text-xs py-2.5 pl-10 pr-9 outline-none text-[#111b21] placeholder-[#667781] font-medium"
             />
             {searchQuery && (
               <button 
                 onClick={() => setSearchQuery('')}
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-650 dark:hover:text-slate-200"
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-[#667781] hover:text-[#111b21]"
               >
                 <X className="h-4 w-4" />
               </button>
             )}
           </div>
 
-          {/* WhatsApp Filter Tags */}
-          <div className="flex gap-1.5 overflow-x-auto pb-0.5 no-scrollbar select-none">
+          {/* Category Filter Tags (All, Unread, Groups, Archived) */}
+          <div className="flex gap-1.5 overflow-x-auto pb-0.5 pt-0.5 no-scrollbar select-none">
             {[
               { id: 'all', label: 'All' },
               { id: 'unread', label: 'Unread' },
-              { id: 'favorites', label: 'Favorites' },
               { id: 'groups', label: 'Groups' },
               { id: 'archived', label: 'Archived' }
             ].map((filter) => (
@@ -281,8 +282,8 @@ export const SidebarLeft = ({ closeMobileSidebar }) => {
                 className={`
                   px-3.5 py-1 rounded-full text-xs font-bold transition-all cursor-pointer shrink-0
                   ${activeFilter === filter.id
-                    ? 'bg-emerald-600 dark:bg-emerald-500 text-white shadow-xs'
-                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                    ? 'bg-[#008069] text-white shadow-xs'
+                    : 'bg-[#dce4ec]/80 hover:bg-[#dce4ec] text-[#54656f] hover:text-[#111b21]'
                   }
                 `}
               >
@@ -293,9 +294,9 @@ export const SidebarLeft = ({ closeMobileSidebar }) => {
         </div>
 
         {/* Chat / Group Roster List */}
-        <div className="flex-1 overflow-y-auto no-scrollbar">
+        <div className="flex-1 overflow-y-auto no-scrollbar bg-white">
           {filteredChats.length === 0 ? (
-            <div className="p-8 text-center text-slate-400 dark:text-slate-500 space-y-2">
+            <div className="p-8 text-center text-[#667781] space-y-2">
               <MessageCircle className="h-8 w-8 mx-auto opacity-30" />
               <p className="text-xs font-semibold">No chats found</p>
             </div>
@@ -314,10 +315,10 @@ export const SidebarLeft = ({ closeMobileSidebar }) => {
                     if (closeMobileSidebar) closeMobileSidebar();
                   }}
                   className={`
-                    p-3.5 border-b border-slate-100/60 dark:border-slate-800/40 flex items-center gap-3 cursor-pointer transition-colors text-left relative group
+                    p-3.5 border-b border-slate-100 flex items-center gap-3 cursor-pointer transition-colors text-left relative group
                     ${isActive 
-                      ? 'bg-indigo-50/80 dark:bg-indigo-500/10 border-l-4 border-l-indigo-600 dark:border-l-indigo-500' 
-                      : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                      ? 'bg-[#dce4ec]' 
+                      : 'hover:bg-[#f0f4f8] bg-white'
                     }
                   `}
                 >
@@ -332,30 +333,30 @@ export const SidebarLeft = ({ closeMobileSidebar }) => {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-1">
                       <div className="flex items-center gap-1.5 min-w-0 pr-2">
-                        <h3 className="text-xs font-black text-slate-900 dark:text-white truncate">
+                        <h3 className="text-xs font-bold text-[#111b21] truncate">
                           {info.name}
                         </h3>
                         {chat.pinned && (
-                          <Pin className="h-3 w-3 text-emerald-500 shrink-0 transform rotate-45 fill-emerald-500" />
+                          <Pin className="h-3 w-3 text-[#008069] shrink-0 transform rotate-45 fill-[#008069]" />
                         )}
                       </div>
                       {chat.lastMessage && (
-                        <span className="text-[10px] text-slate-400 font-semibold shrink-0">
+                        <span className="text-[10px] text-[#667781] font-medium shrink-0">
                           {new Date(chat.lastMessage.createdAt || chat.createdTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </span>
                       )}
                     </div>
 
                     <div className="flex items-center justify-between">
-                      <p className="text-xs text-slate-500 dark:text-slate-400 truncate font-semibold">
+                      <p className="text-xs text-[#54656f] truncate font-normal">
                         {lastMsgText}
                       </p>
 
                       <div className="flex items-center gap-1.5 ml-2 shrink-0">
                         {chat.unreadCount > 0 && (
-                          <Badge variant="primary">
+                          <span className="h-5 w-5 rounded-full bg-[#008069] text-white font-bold text-[10px] flex items-center justify-center shrink-0">
                             {chat.unreadCount}
-                          </Badge>
+                          </span>
                         )}
 
                         {/* Hover action dropdown trigger button */}
@@ -365,7 +366,7 @@ export const SidebarLeft = ({ closeMobileSidebar }) => {
                             e.stopPropagation();
                             setOpenMenuChatId(openMenuChatId === chat.id ? null : chat.id);
                           }}
-                          className="opacity-0 group-hover:opacity-100 p-1 rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all cursor-pointer"
+                          className="opacity-0 group-hover:opacity-100 p-1 rounded-md text-[#667781] hover:text-[#111b21] hover:bg-slate-200 transition-all cursor-pointer"
                         >
                           <ChevronDown className="h-4 w-4" />
                         </button>
@@ -506,7 +507,7 @@ export const SidebarLeft = ({ closeMobileSidebar }) => {
 
           <button
             onClick={() => setIsPlusMenuOpen(!isPlusMenuOpen)}
-            className={`p-3.5 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-600/30 transition-all cursor-pointer transform hover:scale-105 active:scale-95 flex items-center justify-center ${
+            className={`p-3.5 rounded-full bg-[#00a884] hover:bg-[#008f6f] text-white shadow-md transition-all cursor-pointer transform hover:scale-105 active:scale-95 flex items-center justify-center ${
               isPlusMenuOpen ? 'rotate-45 bg-slate-900 dark:bg-slate-800' : ''
             }`}
             title="New Action Menu"

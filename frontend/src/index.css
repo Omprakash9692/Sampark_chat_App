@@ -229,7 +229,7 @@
 
 /* WhatsApp-style Wallpaper Pattern */
 .bg-whatsapp-wallpaper {
-  background-color: #0b141a;
-  background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-color: #efeae2;
+  background-image: radial-gradient(rgba(0, 0, 0, 0.04) 1px, transparent 1px);
   background-size: 24px 24px;
 }
