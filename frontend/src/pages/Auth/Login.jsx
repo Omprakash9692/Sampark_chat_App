@@ -1,54 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, useNavigate } from 'react-router-dom';
-import { Mail, Lock, LogIn, Chrome, MessageSquare, AlertCircle } from 'lucide-react';
+import { Mail, Lock, LogIn, MessageSquare, AlertCircle } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useNotifications } from '../../context/NotificationContext';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 
 export const Login = () => {
-  const { login, googleLogin, allUsers } = useAuth();
+  const { login, allUsers } = useAuth();
   const { showToast } = useNotifications();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
-
-  useEffect(() => {
-    const initGoogle = () => {
-      if (window.google) {
-        window.google.accounts.id.initialize({
-          client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || "542020450661-f4g0mvl31nkuigtmo2vnmm62h7s65em4.apps.googleusercontent.com",
-          callback: async (response) => {
-            setLoading(true);
-            try {
-              const loggedUser = await googleLogin(response.credential);
-              showToast("Access Granted", "Logged in with Google successfully!", "success");
-              navigate(loggedUser.role === 'Admin' ? '/admin' : '/chat');
-            } catch (err) {
-              showToast("Access Denied", err.message || "Google authentication failed", "danger");
-            } finally {
-              setLoading(false);
-            }
-          }
-        });
-
-        window.google.accounts.id.renderButton(
-          document.getElementById("google-login-btn"),
-          { 
-            theme: "outline", 
-            size: "large", 
-            width: 396,
-            shape: "pill",
-            text: "continue_with"
-          }
-        );
-      }
-    };
-
-    const timer = setTimeout(initGoogle, 500);
-    return () => clearTimeout(timer);
-  }, [googleLogin, navigate, showToast]);
 
   const { register, handleSubmit, setValue, formState: { errors } } = useForm({
     defaultValues: {
@@ -178,20 +142,6 @@ export const Login = () => {
               </Button>
             </form>
 
-            <div className="relative my-7">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-slate-200" />
-              </div>
-              <div className="relative flex justify-center text-[11px] uppercase">
-                <span className="bg-white px-4 font-semibold tracking-[0.22em] text-slate-400">
-                  Or Continue With
-                </span>
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <div id="google-login-btn" className="w-full flex justify-center h-[46px] select-none" />
-            </div>
           </div>
 
           <div className="border-t border-slate-200 bg-slate-50/70 px-8 py-5 text-center text-sm text-slate-500">

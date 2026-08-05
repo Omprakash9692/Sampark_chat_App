@@ -9,7 +9,7 @@ export const userSockets = new Map();
 export const userActiveChats = new Map();
 
 export const initSocket = (server) => {
-    // Reset all users' online status on startup to clear stale sessions
+    // Reset all users' online status on startup
     User.updateMany({}, { $set: { isOnline: false } })
         .catch(err => console.error("Failed to reset user online statuses:", err.message));
 

@@ -1,6 +1,5 @@
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import { OAuth2Client } from "google-auth-library";
 import User from "../models/User.js";
 import ApiError from "../utils/ApiError.js";
 import ApiResponse from "../utils/ApiResponse.js";
@@ -15,7 +14,7 @@ const isProduction = process.env.NODE_ENV === "production";
 const cookieOptions = {
   httpOnly: true,
   secure: isProduction,
-  sameSite: "none",
+  sameSite: isProduction ? "none" : "lax",
   path: "/",
   maxAge: 24 * 60 * 60 * 1000
 };
@@ -141,94 +140,6 @@ export const login = asyncHandler(async (req, res) => {
   );
 });
 
-// 4. Google OAuth Login/Registration
-export const googleLogin = asyncHandler(async (req, res) => {
-  const { credential } = req.body;
-  if (!credential) {
-    throw new ApiError(400, "Google credential token is missing");
-  }
-  let email, name, googleId, avatarUrl;
-  const googleClientId = process.env.GOOGLE_CLIENT_ID;
-  if (googleClientId) {
-    try {
-      const client = new OAuth2Client(googleClientId);
-      const ticket = await client.verifyIdToken({
-        idToken: credential,
-        audience: googleClientId,
-      });
-      const payload = ticket.getPayload();
-      email = payload.email;
-      name = payload.name;
-      googleId = payload.sub;
-      avatarUrl = payload.picture;
-    } catch (error) {
-      console.error("Google verify token error:", error);
-      throw new ApiError(400, "Google token verification failed");
-    }
-  } else {
-    // Decryption fallback if Client ID is not configured (allows developer mock testing)
-    try {
-      const decoded = jwt.decode(credential);
-      if (decoded) {
-        email = decoded.email;
-        name = decoded.name;
-        googleId = decoded.sub || "google_mock_id_" + Date.now();
-        avatarUrl = decoded.picture;
-      } else {
-        email = req.body.email || "google.user@example.com";
-        name = req.body.name || "Google User";
-        googleId = req.body.googleId || "google_mock_id_" + Date.now();
-      }
-    } catch (err) {
-      email = req.body.email || "google.user@example.com";
-      name = req.body.name || "Google User";
-      googleId = req.body.googleId || "google_mock_id_" + Date.now();
-    }
-  }
-
-  let user = await User.findOne({ $or: [{ googleId }, { email }] });
-
-  if (user) {
-    if (user.isBlocked) {
-      throw new ApiError(403, "Your account has been suspended by the administrator");
-    }
-    // Link google ID if not linked
-    if (!user.googleId) {
-      user.googleId = googleId;
-      user.isVerified = true;
-      await user.save();
-    }
-  } else {
-    // Create new user (default role: user)
-    user = await User.create({
-      name,
-      email,
-      googleId,
-      role: "user",
-      isVerified: true,
-      avatar: { url: avatarUrl || "" }
-    });
-  }
-  const accessToken = generateAccessToken(user._id);
-  res.cookie("accessToken", accessToken, cookieOptions);
-  const capitalizedRole = user.role.charAt(0).toUpperCase() + user.role.slice(1);
-  return res.status(200).json(
-    new ApiResponse(200, "Google logged in successfully", {
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: capitalizedRole,
-        isVerified: user.isVerified,
-        avatar: user.avatar?.url || "",
-        bio: user.bio || "",
-        phone: user.phone || "",
-        blockedUsers: user.blockedUsers ? user.blockedUsers.map(id => id.toString()) : []
-      },
-      token: accessToken
-    })
-  );
-});
 
 // 5. Get Current User Info 
 export const getMe = asyncHandler(async (req, res) => {
@@ -255,17 +166,20 @@ export const getMe = asyncHandler(async (req, res) => {
 // 6. Logout (Clear cookies)
 export const logout = asyncHandler(async (req, res) => {
   let token = req.cookies?.accessToken;
-  if (token) {
-      const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
-      await User.findByIdAndUpdate(decoded.userId, { isOnline: false, lastSeen: new Date() }); 
+  if (!token && req.headers.authorization?.startsWith("Bearer")) {
+    token = req.headers.authorization.split(" ")[1];
   }
 
-  res.clearCookie("accessToken", {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-    path: "/"
-  });
+  if (token) {
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
+      await User.findByIdAndUpdate(decoded.userId, { isOnline: false, lastSeen: new Date() });
+    } catch (err) {
+      console.log("Token verification during logout:", err.message);
+    }
+  }
+
+  res.clearCookie("accessToken", cookieOptions);
 
   return res.status(200).json(
     new ApiResponse(200, "Logged out successfully")

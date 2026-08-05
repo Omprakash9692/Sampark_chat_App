@@ -33,7 +33,9 @@ export const ChatProvider = ({ children }) => {
       setBlockedUserIds([]);
     }
 
-    const newSocket = io("http://localhost:5000");
+    const newSocket = io("http://localhost:5000", {
+      withCredentials: true
+    });
     newSocket.emit("register", user.id || user._id);
     setSocket(newSocket);
 

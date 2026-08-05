@@ -3,7 +3,6 @@ import {
   register,
   registerAdmin,
   login,
-  googleLogin,
   getMe,
   logout,
   verifyEmail,
@@ -34,7 +33,6 @@ const router = express.Router();
 router.post("/register", register);
 router.post("/register-admin", registerAdmin);
 router.post("/login", login);
-router.post("/google", googleLogin);
 router.post("/logout", logout);
 router.post("/forgot-password", forgotPassword);
 router.post("/reset-password", resetPassword);

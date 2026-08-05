@@ -134,30 +134,6 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const googleLogin = async (credential) => {
-    try {
-      const res = await authFetch(`${API_URL}/google`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ credential })
-      });
-
-      const result = await res.json();
-
-      if (!res.ok) {
-        throw new Error(result.message || "Google authentication failed");
-      }
-
-      setUser(result.data.user);
-      if (result.data?.token) saveToken(result.data.token);
-      fetchDbUsers();
-      return result.data.user;
-    } catch (err) {
-      throw new Error(err.message || "Connection to authentication server failed");
-    }
-  };
 
   const logout = async () => {
     try {
@@ -309,7 +285,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, allUsers, token, authFetch, login, register, googleLogin, logout, verifyEmail, resendVerification, forgotPassword, resetPassword, updateProfile, updateUserSettings, fetchDbUsers }}>
+    <AuthContext.Provider value={{ user, loading, allUsers, token, authFetch, login, register, logout, verifyEmail, resendVerification, forgotPassword, resetPassword, updateProfile, updateUserSettings, fetchDbUsers }}>
       {children}
     </AuthContext.Provider>
   );

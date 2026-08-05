@@ -5,12 +5,12 @@ import app from "./app.js";
 import connectDB from "./config/db.js";
 import { initSocket, userSockets, userActiveChats } from "./sockets/socket.js";
 
-const PORT = 5000;
+const PORT = process.env.PORT || 5000;
 
-connectDB();
+// Top-level await ensures DB is connected before starting HTTP and Sockets
+await connectDB();
 
 const server = http.createServer(app);
-
 
 const io = initSocket(server);
 app.set("io", io);
