@@ -19,6 +19,9 @@ import { NotificationProvider } from './context/NotificationContext';
 const RootRedirect = () => {
   const { user } = useAuth();
   if (user) {
+    if (!user.isVerified) {
+      return <Navigate to="/email-verification" replace />;
+    }
     return <Navigate to={user.role === 'Admin' ? '/admin' : '/chat'} replace />;
   }
   return <Navigate to="/login" replace />;
@@ -30,6 +33,9 @@ const ProtectedRoute = ({ children }) => {
   if (!user) {
     return <Navigate to="/login" replace />;
   }
+  if (!user.isVerified) {
+    return <Navigate to="/email-verification" replace />;
+  }
   return children;
 };
 
@@ -38,6 +44,9 @@ const UserRoute = ({ children }) => {
   const { user } = useAuth();
   if (!user) {
     return <Navigate to="/login" replace />;
+  }
+  if (!user.isVerified) {
+    return <Navigate to="/email-verification" replace />;
   }
   if (user.role === 'Admin') {
     return <Navigate to="/admin" replace />;
@@ -50,6 +59,9 @@ const AdminRoute = ({ children }) => {
   const { user } = useAuth();
   if (!user) {
     return <Navigate to="/login" replace />;
+  }
+  if (!user.isVerified) {
+    return <Navigate to="/email-verification" replace />;
   }
   if (user.role !== 'Admin') {
     return <Navigate to="/chat" replace />;

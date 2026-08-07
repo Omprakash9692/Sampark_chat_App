@@ -21,13 +21,26 @@ const cookieOptions = {
 
 // 1. Register
 export const register = asyncHandler(async (req, res) => {
-  const { name, email, password } = req.body;
+  const { name, email, password, phone } = req.body;
   if (!name || !email || !password) {
     throw new ApiError(400, "All fields (name, email, password) are required");
   }
-  const existingUser = await User.findOne({ email });
+  const existingUser = await User.findOne({ email: email.toLowerCase().trim() });
   if (existingUser) {
     throw new ApiError(400, "User with this email already exists");
+  }
+  if (phone && phone.trim()) {
+    const cleanPhone = phone.trim();
+    const normalizedPhone = cleanPhone.replace(/[\s\-\(\)]/g, "");
+    const existingUsers = await User.find({ phone: { $exists: true, $ne: "" } });
+    const phoneExists = existingUsers.some(u => {
+      if (!u.phone || typeof u.phone !== "string" || !u.phone.trim()) return false;
+      const uPhoneNormalized = u.phone.trim().replace(/[\s\-\(\)]/g, "");
+      return uPhoneNormalized === normalizedPhone || u.phone.trim() === cleanPhone;
+    });
+    if (phoneExists) {
+      throw new ApiError(400, "Phone number already exists. Please try a different number.");
+    }
   }
   const hashedPassword = await bcrypt.hash(password, 10);
   // Generate 6-digit confirmation code
@@ -35,8 +48,9 @@ export const register = asyncHandler(async (req, res) => {
   const verificationCodeExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 mins expir
   const user = await User.create({
     name,
-    email,
+    email: email.toLowerCase().trim(),
     password: hashedPassword,
+    phone: phone ? phone.trim() : "",
     role: "user", // Strict User registration
     isVerified: false,
     verificationCode,
@@ -66,19 +80,33 @@ export const register = asyncHandler(async (req, res) => {
 
 // 2. Register Admin (used for Postman - sets role: 'admin')
 export const registerAdmin = asyncHandler(async (req, res) => {
-  const { name, email, password } = req.body;
+  const { name, email, password, phone } = req.body;
   if (!name || !email || !password) {
     throw new ApiError(400, "All fields (name, email, password) are required");
   }
-  const existingUser = await User.findOne({ email });
+  const existingUser = await User.findOne({ email: email.toLowerCase().trim() });
   if (existingUser) {
     throw new ApiError(400, "User with this email already exists");
+  }
+  if (phone && phone.trim()) {
+    const cleanPhone = phone.trim();
+    const normalizedPhone = cleanPhone.replace(/[\s\-\(\)]/g, "");
+    const existingUsers = await User.find({ phone: { $ne: "" } });
+    const phoneExists = existingUsers.some(u => {
+      if (!u.phone) return false;
+      const uPhoneNormalized = u.phone.trim().replace(/[\s\-\(\)]/g, "");
+      return uPhoneNormalized === normalizedPhone;
+    });
+    if (phoneExists) {
+      throw new ApiError(400, "Phone number already exists. Please try a different number.");
+    }
   }
   const hashedPassword = await bcrypt.hash(password, 10);
   const user = await User.create({
     name,
-    email,
+    email: email.toLowerCase().trim(),
     password: hashedPassword,
+    phone: phone ? phone.trim() : "",
     role: "admin", // Admin registration
     isVerified: true
   });
@@ -107,7 +135,8 @@ export const login = asyncHandler(async (req, res) => {
   if (!email || !password) {
     throw new ApiError(400, "Email and password are required");
   }
-  const user = await User.findOne({ email }).select("+password");
+  const cleanEmail = email.toString().toLowerCase().trim();
+  const user = await User.findOne({ email: cleanEmail }).select("+password");
   if (!user) {
     throw new ApiError(401, "Invalid credentials");
   }
@@ -118,6 +147,20 @@ export const login = asyncHandler(async (req, res) => {
   if (user.isBlocked) {
     throw new ApiError(403, "Your account has been suspended by the administrator");
   }
+
+  // If user email is not verified, ensure verification code is active and send email
+  if (!user.isVerified) {
+    if (!user.verificationCode || !user.verificationCodeExpires || new Date() > user.verificationCodeExpires) {
+      const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+      const verificationCodeExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 mins expiry
+      user.verificationCode = verificationCode;
+      user.verificationCodeExpires = verificationCodeExpires;
+      await user.save();
+      console.log(`[DEBUG] Verification Code for ${user.email}: ${verificationCode}`);
+      await sendVerificationEmail(user.email, user.name, verificationCode);
+    }
+  }
+
   const accessToken = generateAccessToken(user._id);
   res.cookie("accessToken", accessToken, cookieOptions);
   // Capitalize role for frontend compatibility
@@ -188,8 +231,16 @@ export const logout = asyncHandler(async (req, res) => {
 
 // 7. Verify Email
 export const verifyEmail = asyncHandler(async (req, res) => {
-  const { code } = req.body;
-  const user = req.user;
+  const { code, email } = req.body;
+  let user = req.user;
+
+  if (!user && email) {
+    user = await User.findOne({ email: email.toLowerCase().trim() });
+  }
+
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
 
   if (!code) {
     throw new ApiError(400, "Verification code is required");
@@ -199,7 +250,7 @@ export const verifyEmail = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Invalid verification code");
   }
 
-  if (new Date() > user.verificationCodeExpires) {
+  if (user.verificationCodeExpires && new Date() > user.verificationCodeExpires) {
     throw new ApiError(400, "Verification code has expired");
   }
 
@@ -327,12 +378,12 @@ export const resetPassword = asyncHandler(async (req, res) => {
 
 // 9. Update Profile (Protected)
 export const updateProfile = asyncHandler(async (req, res) => {
-  const { name, bio, phone } = req.body;
+  const { name, bio } = req.body;
   const user = req.user;
 
   if (name) user.name = name;
   if (bio !== undefined) user.bio = bio;
-  if (phone !== undefined) user.phone = phone;
+  // email and phone are locked and cannot be changed after registration
 
   if (req.file) {
     try{
@@ -378,24 +429,22 @@ export const getAllUsers = asyncHandler(async (req, res) => {
   const formattedUsers = users.map(u => {
     const uIdStr = u._id.toString();
 
-    // Admins always see full profile data — block relationships don't hide avatars for them
     const hasBlockedMe = !isAdmin && (u.blockedUsers?.map(id => id.toString()).includes(myId.toString()) || false);
     const haveIBlockedHim = !isAdmin && myBlockedUsers.includes(uIdStr);
-    const isBlockedRelation = hasBlockedMe || haveIBlockedHim;
 
     return {
       id: u._id,
       name: u.name,
       email: u.email,
-      avatar: isBlockedRelation ? "" : (u.avatar?.url || ""),
-      avatarColor: "from-indigo-650 to-indigo-650",
+      avatar: hasBlockedMe ? "" : (u.avatar?.url || ""),
+      avatarColor: "from-indigo-500 to-purple-600",
       role: u.role.charAt(0).toUpperCase() + u.role.slice(1),
-      isOnline: isBlockedRelation ? false : (u.isOnline || false),
-      lastSeen: isBlockedRelation ? null : u.lastSeen,
+      isOnline: (hasBlockedMe || haveIBlockedHim) ? false : (u.isOnline || false),
+      lastSeen: (hasBlockedMe || haveIBlockedHim) ? null : u.lastSeen,
       phone: u.phone || "",
       bio: u.bio || "",
       isBlocked: u.isBlocked || false,
-      statusText: u.isBlocked ? "Blocked" : ((isBlockedRelation ? false : u.isOnline) ? "Active" : "Offline")
+      statusText: u.isBlocked ? "Blocked" : (haveIBlockedHim ? "Blocked" : (hasBlockedMe ? "Offline" : (u.isOnline ? "Active" : "Offline")))
     };
   });
 
@@ -422,11 +471,12 @@ export const toggleBlockUserForMe = asyncHandler(async (req, res) => {
     me.blockedUsers = [];
   }
 
-  const index = me.blockedUsers.indexOf(userId);
+  const targetIdStr = userId.toString();
+  const existingIndex = me.blockedUsers.findIndex(id => id.toString() === targetIdStr);
   let isBlockedNow = false;
 
-  if (index > -1) {
-    me.blockedUsers.splice(index, 1);
+  if (existingIndex > -1) {
+    me.blockedUsers.splice(existingIndex, 1);
   } else {
     me.blockedUsers.push(userId);
     isBlockedNow = true;

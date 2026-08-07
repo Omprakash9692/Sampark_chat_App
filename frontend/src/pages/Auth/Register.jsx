@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, useNavigate } from 'react-router-dom';
-import { Mail, Lock, User, UserPlus, MessageSquare } from 'lucide-react';
+import { Mail, Lock, User, UserPlus, MessageSquare, Phone, AlertCircle } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useNotifications } from '../../context/NotificationContext';
 import { Input } from '../../components/ui/Input';
@@ -12,11 +12,13 @@ export const Register = () => {
   const { showToast } = useNotifications();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
   const { register, handleSubmit, watch, formState: { errors } } = useForm({
     defaultValues: {
       name: '',
       email: '',
+      phone: '',
       password: '',
       confirmPassword: '',
       acceptTerms: false
@@ -27,13 +29,15 @@ export const Register = () => {
 
   const onSubmit = async (data) => {
     setLoading(true);
+    setErrorMsg('');
     try {
-      await registerUser(data.email, data.name, data.password);
+      await registerUser(data.email, data.name, data.password, data.phone);
       // Store email so the verification page can resend code even if context resets
       sessionStorage.setItem('pendingVerificationEmail', data.email);
       showToast("Account Created", "Check your email for the 6-digit verification code!", "success");
       navigate('/email-verification', { state: { justRegistered: true } });
     } catch (err) {
+      setErrorMsg(err.message || "Something went wrong");
       showToast("Registration Failed", err.message || "Something went wrong", "danger");
     } finally {
       setLoading(false);
@@ -83,6 +87,13 @@ export const Register = () => {
               </Link>
             </div>
 
+            {errorMsg && (
+              <div className="mb-5 flex items-start gap-2.5 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs text-rose-600">
+                <AlertCircle className="mt-0.5 h-4.5 w-4.5 flex-shrink-0" />
+                <p className="font-medium leading-normal">{errorMsg}</p>
+              </div>
+            )}
+
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
               <Input
                 id="name"
@@ -110,6 +121,18 @@ export const Register = () => {
                     value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
                     message: 'Invalid email address'
                   }
+                })}
+              />
+
+              <Input
+                id="phone"
+                label="Phone Number"
+                placeholder="+1 555-0199 or +91 9876543210"
+                type="tel"
+                icon={Phone}
+                error={errors.phone}
+                {...register('phone', {
+                  required: 'Phone number is required'
                 })}
               />
 

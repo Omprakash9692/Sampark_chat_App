@@ -61,15 +61,19 @@ const conversationSchema = new mongoose.Schema(
       ref: "Message",
       default: null,
     },
-    pinnedMessage: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Message",
-      default: null,
-    },
-    pinnedUntil: {
-      type: Date,
-      default: null,
-    },
+    pinnedMessages: [
+      {
+        message: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Message",
+          required: true,
+        },
+        pinnedUntil: {
+          type: Date,
+          default: null,
+        },
+      }
+    ],
     isBlocked: {
       type: Boolean,
       default: false,

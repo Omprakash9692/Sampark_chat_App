@@ -1,6 +1,6 @@
 import React, { useState, useRef,useEffect } from 'react';
 import {
-  X, Mail, Calendar, UserX, AlertTriangle, LogOut, Trash,
+  X, Mail, Phone, Calendar, UserX, AlertTriangle, LogOut, Trash,
   ChevronRight, ImageIcon, FileText, Link as LinkIcon, Users, UserCheck, Shield,
   Pencil, Camera, UserPlus, MessageSquare, UserMinus, ShieldCheck, ChevronDown, Check,
   Star, StarOff, ArrowLeft, Search, MoreVertical
@@ -42,6 +42,7 @@ export const SidebarRight = ({ onClose }) => {
 
   // Member popover menu state
   const [activeMemberMenuId, setActiveMemberMenuId] = useState(null);
+  const [activeAssignAdminMenuId, setActiveAssignAdminMenuId] = useState(null);
 
   // Edit group profile modal state
   const [isEditGroupModalOpen, setIsEditGroupModalOpen] = useState(false);
@@ -182,10 +183,27 @@ export const SidebarRight = ({ onClose }) => {
       if (success) {
         showToast("Space Left", `You exited the "${group.name}" group.`, "info");
       } else {
-        showToast("Action Failed", "Could not leave group space.", "danger");
+        showToast("Action Failed", "Could not leave group space. If you are sole admin, appoint another admin first.", "danger");
       }
       setIsLeaveModalOpen(false);
       if (onClose) onClose();
+    }
+  };
+
+  const handleMakeAdminAndLeave = async (targetUserId) => {
+    if (!group) return;
+    const promoted = await makeGroupAdmin(group.id, targetUserId);
+    if (promoted) {
+      const success = await leaveGroup(group.id);
+      if (success) {
+        showToast("Admin Assigned & Exited", `New admin assigned and you exited "${group.name}".`, "success");
+        setIsLeaveModalOpen(false);
+        if (onClose) onClose();
+      } else {
+        showToast("Action Failed", "Assigned admin but could not leave space.", "danger");
+      }
+    } else {
+      showToast("Action Failed", "Could not assign new admin.", "danger");
     }
   };
 
@@ -282,6 +300,18 @@ export const SidebarRight = ({ onClose }) => {
       return;
     }
 
+    // Check if any selected user already has a pending join request
+    const pendingUserIds = (group?.joinRequests || []).map(r => {
+      if (typeof r.user === 'object') return (r.user.id || r.user._id?.toString());
+      return r.user ? r.user.toString() : "";
+    });
+
+    const alreadyRequestedUser = selectedMemberIdsToAdd.find(id => pendingUserIds.includes(id.toString()));
+    if (alreadyRequestedUser) {
+      showToast("Request Already Sent", "You have already sent a request to add this member to the group space.", "warning");
+      return;
+    }
+
     const res = await addMembersToGroup(group.id, selectedMemberIdsToAdd);
     if (res && res.success) {
       if (res.isPending) {
@@ -292,7 +322,7 @@ export const SidebarRight = ({ onClose }) => {
       setIsAddMembersModalOpen(false);
       setSelectedMemberIdsToAdd([]);
     } else {
-      showToast("Action Failed", "Could not add members to space.", "danger");
+      showToast("Request Already Sent", res?.message || "You have already sent a request to add this member.", "warning");
     }
   };
 
@@ -307,19 +337,19 @@ export const SidebarRight = ({ onClose }) => {
 
   if (showStarredView) {
     return (
-      <div className="flex-1 flex flex-col h-full overflow-hidden bg-white dark:bg-slate-900 border-l border-slate-200/80 dark:border-slate-800">
+      <div className="flex-1 flex flex-col h-full overflow-hidden bg-[#f0f4f8] border-l border-slate-200/80">
 
         {/* Top Header */}
-        <div className="h-16 px-4 border-b border-slate-200/80 dark:border-slate-800 flex items-center justify-between shrink-0 select-none bg-white dark:bg-slate-900">
+        <div className="h-16 px-4 border-b border-[#e9edef] flex items-center justify-between shrink-0 select-none bg-[#f0f2f5]">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setShowStarredView(false)}
-              className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors"
+              className="p-1.5 rounded-lg text-[#54656f] hover:text-[#111b21] hover:bg-slate-200/60 cursor-pointer transition-colors"
               title="Back to Contact Info"
             >
               <ArrowLeft className="h-5 w-5" />
             </button>
-            <h4 className="text-sm font-bold text-slate-900 dark:text-white">
+            <h4 className="text-sm font-bold text-[#111b21]">
               Starred messages
             </h4>
           </div>
@@ -327,7 +357,7 @@ export const SidebarRight = ({ onClose }) => {
           <div className="relative">
             <button
               onClick={() => setIsUnstarMenuOpen(!isUnstarMenuOpen)}
-              className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors"
+              className="p-1.5 rounded-lg text-[#54656f] hover:text-[#111b21] hover:bg-slate-200/60 cursor-pointer transition-colors"
               title="More options"
             >
               <MoreVertical className="h-5 w-5" />
@@ -336,7 +366,7 @@ export const SidebarRight = ({ onClose }) => {
             {/* Three Dot Dropdown Menu */}
             {isUnstarMenuOpen && (
               <div
-                className="absolute right-0 top-10 z-50 bg-slate-900/95 dark:bg-slate-950 text-slate-200 rounded-xl shadow-2xl border border-slate-700/80 py-1.5 w-40 text-xs font-semibold select-none animate-in fade-in zoom-in-95"
+                className="absolute right-0 top-10 z-50 bg-white text-[#111b21] rounded-xl shadow-2xl border border-slate-200 py-1.5 w-40 text-xs font-semibold select-none animate-in fade-in zoom-in-95"
               >
                 <button
                   onClick={() => {
@@ -347,9 +377,9 @@ export const SidebarRight = ({ onClose }) => {
                     }
                     setIsUnstarConfirmModalOpen(true);
                   }}
-                  className="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-slate-800 transition-colors text-left text-slate-200 cursor-pointer"
+                  className="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-slate-100 transition-colors text-left text-[#111b21] cursor-pointer"
                 >
-                  <StarOff className="h-4 w-4 text-slate-400" />
+                  <StarOff className="h-4 w-4 text-[#667781]" />
                   Unstar all
                 </button>
               </div>
@@ -358,20 +388,20 @@ export const SidebarRight = ({ onClose }) => {
         </div>
 
         {/* Search Bar */}
-        <div className="p-3 border-b border-slate-100 dark:border-slate-800">
+        <div className="p-3 border-b border-slate-200/80 bg-[#f0f4f8]">
           <div className="relative">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#667781]" />
             <input
               type="text"
               placeholder="Search starred messages..."
               value={starredSearchQuery}
               onChange={(e) => setStarredSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-8 py-2 rounded-full bg-slate-100 dark:bg-slate-800 text-xs font-semibold text-slate-900 dark:text-white placeholder-slate-400 border border-transparent focus:border-indigo-500 focus:outline-none transition-all"
+              className="w-full pl-10 pr-8 py-2 rounded-full bg-[#dce4ec] text-xs font-semibold text-[#111b21] placeholder-[#667781] border border-transparent focus:border-[#008069] focus:outline-none transition-all"
             />
             {starredSearchQuery && (
               <button
                 onClick={() => setStarredSearchQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 rounded-full text-slate-400 hover:text-slate-600"
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 rounded-full text-[#667781] hover:text-[#111b21]"
               >
                 <X className="h-3.5 w-3.5" />
               </button>
@@ -380,14 +410,14 @@ export const SidebarRight = ({ onClose }) => {
         </div>
 
         {/* Messages List Container */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar">
+        <div className="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar bg-[#f0f4f8]">
           {starredMessagesList.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-center p-8 space-y-3">
               <div className="h-14 w-14 rounded-full bg-amber-500/10 text-amber-500 flex items-center justify-center mb-1">
                 <Star className="h-7 w-7 fill-amber-500/20 text-amber-500" />
               </div>
-              <h5 className="text-sm font-bold text-slate-800 dark:text-slate-200">No starred messages</h5>
-              <p className="text-xs text-slate-450 dark:text-slate-500 max-w-xs leading-relaxed">
+              <h5 className="text-sm font-bold text-[#111b21]">No starred messages</h5>
+              <p className="text-xs text-[#667781] max-w-xs leading-relaxed">
                 {starredSearchQuery ? "No starred messages match your search filter." : "Hover over any message and select Star to save it here."}
               </p>
             </div>
@@ -397,26 +427,26 @@ export const SidebarRight = ({ onClose }) => {
               const sender = isMe ? authUser : (allUsers.find(u => u.id === msg.senderId) || { name: 'Unknown User' });
               const recipientName = isDirect ? recipient?.name : group?.name;
               const dateStr = new Date(msg.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
-              const timeStr = new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+              const timeStr = new Date(msg.timestamp || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
               return (
                 <div
                   key={msg.id}
-                  className="bg-slate-50 dark:bg-slate-800/70 border border-slate-200/80 dark:border-slate-750 rounded-2xl p-3 space-y-2 text-left transition-all hover:border-indigo-400 dark:hover:border-slate-600 shadow-2xs relative group"
+                  className="bg-white border border-slate-200/80 rounded-2xl p-3.5 space-y-2 text-left transition-all hover:border-[#008069]/40 shadow-2xs relative group"
                 >
                   {/* Sender & Recipient Header */}
-                  <div className="flex items-center justify-between border-b border-slate-200/50 dark:border-slate-750 pb-2">
-                    <div className="flex items-center gap-2 min-w-0">
+                  <div className="flex items-center justify-between border-b border-slate-200/60 pb-2">
+                    <div className="flex items-center gap-2.5 min-w-0">
                       <Avatar src={sender.avatar} name={sender.name} size="xs" color={sender.avatarColor} />
-                      <span className="text-xs font-bold text-slate-900 dark:text-white truncate">
-                        {sender.name} <span className="text-slate-400 font-normal">▸</span> {isMe ? recipientName : 'You'}
+                      <span className="text-xs font-bold text-[#111b21] truncate">
+                        {sender.name} <span className="text-[#667781] font-normal">▸</span> {isMe ? recipientName : 'You'}
                       </span>
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
-                      <span className="text-[10px] text-slate-450 font-semibold">{dateStr}</span>
+                      <span className="text-[10px] text-[#667781] font-semibold">{dateStr}</span>
                       <button
                         onClick={() => handleUnstarSingleMessage(msg.id)}
-                        className="p-1 rounded-md text-slate-450 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                        className="p-1 rounded-md text-[#667781] hover:text-amber-500 hover:bg-amber-50 transition-colors cursor-pointer"
                         title="Unstar Message"
                       >
                         <StarOff className="h-3.5 w-3.5" />
@@ -425,7 +455,7 @@ export const SidebarRight = ({ onClose }) => {
                   </div>
 
                   {/* Message Bubble Content */}
-                  <div className="bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-200/60 dark:border-slate-800 text-xs text-slate-800 dark:text-slate-200 leading-relaxed relative">
+                  <div className="bg-[#f0f4f8] p-3 rounded-xl border border-slate-200/60 text-xs text-[#111b21] leading-relaxed relative">
                     {msg.text && <p className="whitespace-pre-wrap">{msg.text}</p>}
                     {msg.attachmentName && (
                       <div className="flex items-center gap-2 mt-1 text-indigo-600 dark:text-indigo-400 font-semibold">
@@ -543,12 +573,19 @@ export const SidebarRight = ({ onClose }) => {
 
           {/* Detailed parameters */}
           {isDirect && recipient && (
-            <div className="p-4 bg-white border-b border-slate-200/80 text-left text-xs font-medium">
+            <div className="p-4 bg-white border-b border-slate-200/80 text-left text-xs font-medium space-y-3">
               <div className="flex items-center gap-3">
                 <Mail className="h-4 w-4 text-[#008069]" />
                 <div>
                   <span className="text-[10px] text-[#667781] block uppercase font-bold tracking-wider">Email Address</span>
                   <span className="text-[#111b21] font-bold select-all">{recipient.email}</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 pt-2 border-t border-slate-100">
+                <Phone className="h-4 w-4 text-[#008069]" />
+                <div>
+                  <span className="text-[10px] text-[#667781] block uppercase font-bold tracking-wider">Phone Number</span>
+                  <span className="text-[#111b21] font-bold select-all">{recipient.phone || "Not provided"}</span>
                 </div>
               </div>
             </div>
@@ -598,70 +635,15 @@ export const SidebarRight = ({ onClose }) => {
                     />
                   </button>
                 </div>
-
-                {/* Toggle 2: Add other members */}
-                <div className="flex items-center justify-between gap-3 pt-2.5 border-t border-slate-100">
-                  <div className="min-w-0 flex-1">
-                    <span className="text-xs font-bold text-[#111b21] block truncate">
-                      Add other members
-                    </span>
-                    <span className="text-[10px] text-[#667781] block font-medium truncate mt-0.5">
-                      {(group.permissions?.addMembers !== false) ? "Members can add new members" : "Only admins can add members"}
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    disabled={!amIAdmin}
-                    onClick={() => handleTogglePermission('addMembers', (group.permissions?.addMembers === false))}
-                    className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${(group.permissions?.addMembers !== false) ? 'bg-[#008069]' : 'bg-slate-300'
-                      } ${!amIAdmin ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
-                  >
-                    <span
-                      className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${(group.permissions?.addMembers !== false) ? 'translate-x-4' : 'translate-x-0'
-                        }`}
-                    />
-                  </button>
-                </div>
-              </div>
-
-              {/* Section 2: Admins can */}
-              <div className="bg-white rounded-2xl p-3.5 border border-slate-200/80 shadow-xs space-y-3">
-                <div className="text-[10px] font-bold uppercase text-amber-700 tracking-wider">
-                  Admins can
-                </div>
-
-                {/* Toggle 3: Approve new members */}
-                <div className="flex items-center justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    <span className="text-xs font-bold text-[#111b21] block truncate">
-                      Approve new members
-                    </span>
-                    <span className="text-[10px] text-[#667781] block font-medium truncate mt-0.5">
-                      {group.permissions?.approveMembers ? "Require admin approval for additions" : "Members join directly"}
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    disabled={!amIAdmin}
-                    onClick={() => handleTogglePermission('approveMembers', !group.permissions?.approveMembers)}
-                    className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${group.permissions?.approveMembers ? 'bg-[#008069]' : 'bg-slate-300'
-                      } ${!amIAdmin ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
-                  >
-                    <span
-                      className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${group.permissions?.approveMembers ? 'translate-x-4' : 'translate-x-0'
-                        }`}
-                    />
-                  </button>
-                </div>
               </div>
             </div>
           )}
 
           {/* Pending Join Requests Section for Admins */}
           {!isDirect && group && amIAdmin && group.joinRequests && group.joinRequests.length > 0 && (
-            <div className="p-4 border-b border-slate-100 dark:border-slate-800 text-left bg-amber-500/5">
-              <h4 className="text-xs font-black text-amber-600 dark:text-amber-400 flex items-center gap-1.5 mb-3 tracking-wide uppercase">
-                <UserCheck className="h-4 w-4" />
+            <div className="p-4 border-b border-slate-200/80 text-left bg-[#008069]/5">
+              <h4 className="text-xs font-extrabold text-[#008069] flex items-center gap-1.5 mb-3 tracking-wide uppercase">
+                <UserCheck className="h-4 w-4 text-[#008069]" />
                 Pending Join Requests ({group.joinRequests.length})
               </h4>
               <div className="space-y-2">
@@ -673,19 +655,19 @@ export const SidebarRight = ({ onClose }) => {
                   const requestedByObj = req.requestedBy === 'user_me' ? authUser : allUsers.find(u => u.id === req.requestedBy || u._id?.toString() === req.requestedBy);
 
                   return (
-                    <div key={req.id || reqUserRealId} className="flex items-center justify-between p-3 rounded-2xl bg-white dark:bg-slate-800 border border-amber-200 dark:border-amber-900/40 shadow-2xs">
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <Avatar src={reqUser.avatar} name={reqUser.name} size="sm" />
-                        <div className="text-xs min-w-0">
-                          <span className="font-black text-slate-900 dark:text-white block truncate leading-tight">
+                    <div key={req.id || reqUserRealId} className="flex items-center justify-between p-3 rounded-2xl bg-white border border-[#008069]/25 shadow-2xs">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <Avatar src={reqUser.avatar} name={reqUser.name} size="sm" color={reqUser.avatarColor} />
+                        <div className="text-xs min-w-0 text-left">
+                          <span className="font-extrabold text-[#111b21] block truncate leading-tight">
                             {reqUser.name}
                           </span>
-                          <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 block truncate mt-0.5">
+                          <span className="text-[11px] font-medium text-[#667781] block truncate mt-0.5">
                             Added by {requestedByObj?.name || 'Member'}
                           </span>
                         </div>
                       </div>
-                      <div className="flex items-center gap-1.5 shrink-0">
+                      <div className="flex items-center gap-2 shrink-0">
                         <button
                           type="button"
                           onClick={async () => {
@@ -694,10 +676,10 @@ export const SidebarRight = ({ onClose }) => {
                               showToast("Member Approved", `${reqUser.name} has been added to the group.`, "success");
                             }
                           }}
-                          className="p-1.5 rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500 hover:text-white transition-colors cursor-pointer"
+                          className="p-2 rounded-xl bg-[#008069] text-white hover:bg-[#006e5a] transition-all cursor-pointer flex items-center justify-center shadow-2xs"
                           title="Approve Member"
                         >
-                          <Check className="h-4 w-4" />
+                          <Check className="h-4 w-4 stroke-[2.5]" />
                         </button>
                         <button
                           type="button"
@@ -707,10 +689,10 @@ export const SidebarRight = ({ onClose }) => {
                               showToast("Request Rejected", `Join request for ${reqUser.name} was rejected.`, "info");
                             }
                           }}
-                          className="p-1.5 rounded-lg bg-rose-500/15 text-rose-600 dark:text-rose-400 hover:bg-rose-500 hover:text-white transition-colors cursor-pointer"
+                          className="p-2 rounded-xl bg-rose-50 text-rose-600 border border-rose-200 hover:bg-rose-600 hover:text-white transition-all cursor-pointer flex items-center justify-center"
                           title="Reject Request"
                         >
-                          <X className="h-4 w-4" />
+                          <X className="h-4 w-4 stroke-[2.5]" />
                         </button>
                       </div>
                     </div>
@@ -772,7 +754,7 @@ export const SidebarRight = ({ onClose }) => {
                               {member.name} {isMe && "(You)"}
                             </span>
                             <span className="text-[11px] font-medium text-[#667781] block truncate mt-0.5">
-                              {member.statusText || member.email}
+                              {member.phone || member.statusText || "No phone number"}
                             </span>
                           </div>
                         </div>
@@ -886,8 +868,8 @@ export const SidebarRight = ({ onClose }) => {
 
 
           {/* Media / Files Archive Tabs */}
-          <div className="p-4 text-left">
-            <h4 className="text-xs font-black uppercase text-black dark:text-slate-300 tracking-wider mb-3.5">
+          <div className="p-4 text-left border-t border-slate-200/80 bg-[#f0f4f8]">
+            <h4 className="text-xs font-extrabold uppercase text-[#54656f] tracking-wider mb-3.5">
               Conversation Archive
             </h4>
             <Tabs
@@ -902,12 +884,12 @@ export const SidebarRight = ({ onClose }) => {
             {activeMediaTab === 'media' && (
               <div className="grid grid-cols-3 gap-2">
                 {sharedImages.length === 0 ? (
-                  <div className="col-span-3 text-center py-6 text-[10px] text-slate-450 dark:text-slate-500">
+                  <div className="col-span-3 text-center py-6 text-xs text-[#667781] font-medium italic">
                     No images shared.
                   </div>
                 ) : (
                   sharedImages.map((m, idx) => (
-                    <div key={idx} className="relative aspect-square rounded-lg overflow-hidden border border-slate-200/50 dark:border-slate-800 shrink-0">
+                    <div key={idx} className="relative aspect-square rounded-xl overflow-hidden border border-slate-200/80 shadow-2xs shrink-0">
                       <img
                         src={m.attachmentUrl}
                         alt="shared thumbnail"
@@ -922,7 +904,7 @@ export const SidebarRight = ({ onClose }) => {
             {activeMediaTab === 'files' && (
               <div className="space-y-2">
                 {sharedDocs.length === 0 ? (
-                  <div className="text-center py-6 text-[10px] text-slate-450 dark:text-slate-500">
+                  <div className="text-center py-6 text-xs text-[#667781] font-medium italic">
                     No documents shared.
                   </div>
                 ) : (
@@ -939,14 +921,18 @@ export const SidebarRight = ({ onClose }) => {
                           showToast("File Saved", "Mock download initiated.", "success");
                         }
                       }}
-                      className="p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-850 flex items-center gap-2.5 hover:bg-slate-100 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group/sidebar-file text-slate-800 dark:text-slate-200 decoration-transparent"
+                      className="p-3 rounded-2xl border border-slate-200/80 bg-white shadow-2xs flex items-center gap-3 hover:bg-slate-50 hover:border-[#008069]/40 cursor-pointer transition-all group/sidebar-file text-[#111b21] decoration-transparent"
                     >
-                      <FileText className="h-5 w-5 text-red-500 shrink-0" />
+                      <div className="p-2 rounded-xl bg-rose-50 border border-rose-100 text-rose-500 shrink-0">
+                        <FileText className="h-5 w-5" />
+                      </div>
                       <div className="min-w-0 text-left flex-1">
-                        <h5 className="text-[11px] font-bold truncate text-slate-800 dark:text-slate-250 group-hover/sidebar-file:text-indigo-600 dark:group-hover/sidebar-file:text-indigo-400 transition-colors">
+                        <h5 className="text-xs font-bold truncate text-[#111b21] group-hover/sidebar-file:text-[#008069] transition-colors">
                           {m.attachmentName}
                         </h5>
-                        <span className="text-[9px] text-slate-450 dark:text-slate-500">{m.attachmentSize}</span>
+                        <span className="text-[11px] font-medium text-[#667781] block mt-0.5">
+                          {m.attachmentSize || "PDF Document"}
+                        </span>
                       </div>
                     </a>
                   ))
@@ -957,7 +943,7 @@ export const SidebarRight = ({ onClose }) => {
             {activeMediaTab === 'links' && (
               <div className="space-y-2">
                 {sharedLinks.length === 0 ? (
-                  <div className="text-center py-6 text-[10px] text-slate-450 dark:text-slate-500">
+                  <div className="text-center py-6 text-xs text-[#667781] font-medium italic">
                     No links shared in this conversation.
                   </div>
                 ) : (
@@ -967,14 +953,16 @@ export const SidebarRight = ({ onClose }) => {
                       href={item.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-850 flex items-center gap-2.5 hover:bg-slate-100 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group/sidebar-link text-slate-800 dark:text-slate-200 decoration-transparent"
+                      className="p-3 rounded-2xl border border-slate-200/80 bg-white shadow-2xs flex items-center gap-3 hover:bg-slate-50 hover:border-[#008069]/40 cursor-pointer transition-all group/sidebar-link text-[#111b21] decoration-transparent"
                     >
-                      <LinkIcon className="h-4.5 w-4.5 text-indigo-500 shrink-0 group-hover/sidebar-link:scale-105 transition-transform" />
+                      <div className="p-2 rounded-xl bg-[#008069]/10 text-[#008069] shrink-0">
+                        <LinkIcon className="h-4.5 w-4.5" />
+                      </div>
                       <div className="min-w-0 text-left flex-1">
-                        <h5 className="text-[11px] font-bold truncate text-indigo-650 dark:text-indigo-400 group-hover/sidebar-link:underline">
+                        <h5 className="text-xs font-bold truncate text-[#008069] group-hover/sidebar-link:underline">
                           {item.display}
                         </h5>
-                        <span className="text-[9px] text-slate-450 dark:text-slate-500 block mt-0.5">
+                        <span className="text-[11px] font-medium text-[#667781] block mt-0.5">
                           Shared by {item.senderName} • {item.timestamp}
                         </span>
                       </div>
@@ -1017,17 +1005,15 @@ export const SidebarRight = ({ onClose }) => {
                 </>
               ) : (
                 <>
-                  {(amIAdmin || group.permissions?.addMembers !== false) && (
-                    <button
-                      onClick={() => {
-                        setSelectedMemberIdsToAdd([]);
-                        setIsAddMembersModalOpen(true);
-                      }}
-                      className="w-full py-2.5 px-3.5 rounded-xl border border-[#008069]/30 bg-white hover:bg-[#008069]/10 text-[#008069] flex items-center gap-2 text-xs font-bold transition-colors cursor-pointer select-none shadow-xs"
-                    >
-                      <UserPlus className="h-4.5 w-4.5" /> Add Members to Space
-                    </button>
-                  )}
+                  <button
+                    onClick={() => {
+                      setSelectedMemberIdsToAdd([]);
+                      setIsAddMembersModalOpen(true);
+                    }}
+                    className="w-full py-2.5 px-3.5 rounded-xl border border-[#008069]/30 bg-white hover:bg-[#008069]/10 text-[#008069] flex items-center gap-2 text-xs font-bold transition-colors cursor-pointer select-none shadow-xs"
+                  >
+                    <UserPlus className="h-4.5 w-4.5" /> Add Members to Space
+                  </button>
                   <button
                     onClick={() => setIsLeaveModalOpen(true)}
                     className="w-full py-2.5 px-3.5 rounded-xl border border-rose-200 bg-white hover:bg-rose-50 text-rose-600 flex items-center gap-2 text-xs font-bold transition-colors cursor-pointer select-none shadow-xs"
@@ -1066,7 +1052,7 @@ export const SidebarRight = ({ onClose }) => {
                     src={editGroupAvatarUrl}
                     name={editGroupName || "Group"}
                     size="xl"
-                    className="h-20 w-20 border-2 border-slate-200 dark:border-slate-800 object-cover shadow-md rounded-full transition-transform group-hover:scale-105"
+                    className="h-20 w-20 border-2 border-slate-200 object-cover shadow-md rounded-full transition-transform group-hover:scale-105"
                   />
                   <div className="absolute inset-0 bg-slate-950/45 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                     <Camera className="h-5 w-5 text-white" />
@@ -1079,14 +1065,14 @@ export const SidebarRight = ({ onClose }) => {
                     className="hidden"
                   />
                 </div>
-                <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
+                <span className="text-[10px] font-black uppercase text-[#667781] tracking-wider">
                   {isUploadingAvatar ? "Uploading avatar..." : "Click image to change avatar"}
                 </span>
               </div>
 
               {/* Group Name Input */}
               <div className="space-y-1.5">
-                <label className="block text-[10px] font-black text-slate-450 dark:text-slate-400 uppercase tracking-wider">
+                <label className="block text-[10px] font-black text-[#54656f] uppercase tracking-wider">
                   Group Name <span className="text-rose-500 font-bold">*</span>
                 </label>
                 <input
@@ -1095,37 +1081,37 @@ export const SidebarRight = ({ onClose }) => {
                   value={editGroupName}
                   onChange={(e) => setEditGroupName(e.target.value)}
                   required
-                  className="block w-full rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-xs py-3 px-4 outline-none text-slate-800 dark:text-white transition-all font-semibold shadow-xs"
+                  className="block w-full rounded-xl bg-[#f0f4f8] border border-slate-200/80 focus:border-[#008069] focus:ring-1 focus:ring-[#008069] text-xs py-3 px-4 outline-none text-[#111b21] placeholder-[#667781] font-semibold transition-all shadow-xs"
                 />
               </div>
 
               {/* Group Description Input */}
               <div className="space-y-1.5">
-                <label className="block text-[10px] font-black text-slate-450 dark:text-slate-400 uppercase tracking-wider">
+                <label className="block text-[10px] font-black text-[#54656f] uppercase tracking-wider">
                   Group Description
                 </label>
                 <textarea
                   placeholder="Group description"
                   value={editGroupDesc}
                   onChange={(e) => setEditGroupDesc(e.target.value)}
-                  className="block w-full rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-xs p-3.5 outline-none text-slate-800 dark:text-white transition-all min-h-[90px] shadow-xs resize-none font-semibold"
+                  className="block w-full rounded-xl bg-[#f0f4f8] border border-slate-200/80 focus:border-[#008069] focus:ring-1 focus:ring-[#008069] text-xs p-3.5 outline-none text-[#111b21] placeholder-[#667781] font-semibold transition-all min-h-[90px] shadow-xs resize-none"
                 />
               </div>
 
               {/* Action buttons */}
-              <div className="flex justify-end gap-2.5 pt-4 border-t border-slate-100 dark:border-slate-800/80">
+              <div className="flex justify-end gap-2.5 pt-4 border-t border-slate-200/80">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => setIsEditGroupModalOpen(false)}
-                  className="rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-extrabold"
+                  className="rounded-xl border border-slate-200 text-xs font-extrabold text-[#111b21]"
                 >
                   Cancel
                 </Button>
                 <Button
                   type="submit"
                   disabled={isUploadingAvatar}
-                  className="rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs shadow-md"
+                  className="rounded-xl bg-[#008069] hover:bg-[#006e5a] text-white font-extrabold text-xs shadow-md"
                 >
                   Save Changes
                 </Button>
@@ -1209,23 +1195,118 @@ export const SidebarRight = ({ onClose }) => {
           {/* LEAVE GROUP MODAL */}
           <Modal
             isOpen={isLeaveModalOpen}
-            onClose={() => setIsLeaveModalOpen(false)}
+            onClose={() => {
+              setIsLeaveModalOpen(false);
+              setActiveAssignAdminMenuId(null);
+            }}
             title="Exit Group Space?"
-            size="sm"
+            size="md"
           >
-            <div className="text-left space-y-4">
-              <p className="text-xs text-slate-650 dark:text-slate-400 leading-normal">
-                Are you sure you want to leave the "{group?.name}" group space? You will lose access to the message history and no longer receive updates.
-              </p>
-              <div className="flex justify-end gap-3 pt-2">
-                <Button variant="outline" onClick={() => setIsLeaveModalOpen(false)}>
-                  Cancel
-                </Button>
-                <Button variant="danger" onClick={handleLeaveGroup}>
-                  Exit Space
-                </Button>
+            {(!isDirect && group && amIAdmin && (group.adminIds?.length === 1) && (group.memberIds?.length > 1)) ? (
+              <div className="text-left space-y-3.5 select-none relative">
+                {/* Backdrop overlay to close assign admin dropdown */}
+                {activeAssignAdminMenuId && (
+                  <div
+                    className="fixed inset-0 z-30 bg-transparent"
+                    onClick={() => setActiveAssignAdminMenuId(null)}
+                  />
+                )}
+
+                {/* WhatsApp styled warning banner */}
+                <div className="bg-[#008069]/10 p-3.5 rounded-2xl border border-[#008069]/30 text-xs font-semibold text-[#008069] space-y-1 shadow-2xs">
+                  <div className="flex items-center gap-2 font-bold text-[#008069]">
+                    <AlertTriangle className="h-4 w-4 shrink-0 text-[#008069]" />
+                    Assign a New Admin First
+                  </div>
+                  <p className="text-[11px] leading-relaxed text-[#54656f]">
+                    You are currently the only admin in this group space. You must appoint a member as admin before leaving.
+                  </p>
+                </div>
+
+                <p className="text-xs font-bold text-[#111b21]">
+                  Select a member to promote to Admin:
+                </p>
+
+                <div className="max-h-56 overflow-y-auto space-y-2 pr-1 no-scrollbar">
+                  {allUsers
+                    .filter(u => {
+                      const uRealId = u.id || u._id?.toString();
+                      return group.memberIds?.includes(uRealId) && uRealId !== 'user_me' && uRealId !== myRealId;
+                    })
+                    .map(member => {
+                      const memberRealId = member.id || member._id?.toString();
+                      const isMenuOpen = activeAssignAdminMenuId === memberRealId;
+                      return (
+                        <div key={memberRealId} className={`relative ${isMenuOpen ? 'z-50' : 'z-1'}`}>
+                          <div className="flex items-center justify-between p-3 rounded-2xl bg-white border border-slate-200/80 shadow-2xs hover:border-slate-300 transition-all">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <Avatar src={member.avatar} name={member.name} size="sm" color={member.avatarColor} />
+                              <div className="min-w-0 text-left">
+                                <span className="text-xs font-bold text-[#111b21] block truncate">{member.name}</span>
+                                <span className="text-[11px] font-medium text-[#667781] block truncate mt-0.5">{member.phone || "No phone number"}</span>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveAssignAdminMenuId(isMenuOpen ? null : memberRealId);
+                              }}
+                              className="p-1.5 rounded-lg text-[#667781] hover:text-[#111b21] hover:bg-slate-200/60 transition-colors cursor-pointer"
+                              title="Options"
+                            >
+                              <MoreVertical className="h-4 w-4" />
+                            </button>
+                          </div>
+
+                          {/* Action Dropdown Menu */}
+                          {isMenuOpen && (
+                            <div className="absolute right-0 top-full mt-1 z-[100] w-48 rounded-xl bg-white border border-slate-200 shadow-2xl p-1 animate-in fade-in zoom-in-95">
+                              <button
+                                type="button"
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  setActiveAssignAdminMenuId(null);
+                                  const success = await makeGroupAdmin(group.id, memberRealId);
+                                  if (success) {
+                                    showToast("Admin Assigned", `${member.name} is now a group admin. You can now exit the group space.`, "success");
+                                  } else {
+                                    showToast("Action Failed", "Could not assign admin permissions.", "danger");
+                                  }
+                                }}
+                                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-[#111b21] hover:bg-[#008069]/10 hover:text-[#008069] rounded-lg cursor-pointer transition-colors text-left"
+                              >
+                                <ShieldCheck className="h-4 w-4 text-[#008069] shrink-0" />
+                                <span>Make admin</span>
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                </div>
+
+                <div className="flex justify-end pt-2 border-t border-slate-200/80">
+                  <Button variant="outline" onClick={() => setIsLeaveModalOpen(false)} className="rounded-xl border border-slate-200 font-extrabold text-xs text-[#111b21]">
+                    Cancel
+                  </Button>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="text-left space-y-4 select-none">
+                <p className="text-xs text-[#54656f] leading-relaxed font-medium">
+                  Are you sure you want to leave the "<strong className="text-[#111b21] font-extrabold">{group?.name}</strong>" group space? You will lose access to the message history and no longer receive updates.
+                </p>
+                <div className="flex justify-end gap-3 pt-3 border-t border-slate-200/80">
+                  <Button variant="outline" onClick={() => setIsLeaveModalOpen(false)} className="rounded-xl border border-slate-200 font-extrabold text-xs text-[#111b21]">
+                    Cancel
+                  </Button>
+                  <Button variant="danger" onClick={handleLeaveGroup} className="rounded-xl font-extrabold text-xs bg-rose-600 hover:bg-rose-700 text-white shadow-md">
+                    Exit Space
+                  </Button>
+                </div>
+              </div>
+            )}
           </Modal>
 
           {/* ADD MEMBERS MODAL */}
@@ -1236,8 +1317,8 @@ export const SidebarRight = ({ onClose }) => {
             size="md"
           >
             <form onSubmit={handleAddMembersSubmit} className="space-y-4 text-left p-1 select-none">
-              <p className="text-xs text-slate-600 dark:text-slate-400 font-medium">
-                Select users to add to <strong className="text-slate-900 dark:text-slate-100 font-extrabold">{group?.name}</strong>:
+              <p className="text-xs text-[#54656f] font-medium">
+                Select users to add to <strong className="text-[#111b21] font-extrabold">{group?.name}</strong>:
               </p>
               <div className="max-h-60 overflow-y-auto space-y-2 pr-1 no-scrollbar">
                 {allUsers
@@ -1252,32 +1333,52 @@ export const SidebarRight = ({ onClose }) => {
                   .map(u => {
                     const uId = u.id || u._id?.toString();
                     const isChecked = selectedMemberIdsToAdd.includes(uId);
+                    const isPending = (group?.joinRequests || []).some(r => {
+                      const rUserId = typeof r.user === 'object' ? (r.user.id || r.user._id?.toString()) : (r.user ? r.user.toString() : '');
+                      return rUserId === uId.toString();
+                    });
+
                     return (
                       <div
                         key={uId}
                         onClick={() => {
+                          if (isPending) {
+                            showToast("Request Already Sent", `A request to add ${u.name} has already been sent to the admin.`, "warning");
+                            return;
+                          }
                           setSelectedMemberIdsToAdd(prev =>
                             isChecked ? prev.filter(id => id !== uId) : [...prev, uId]
                           );
                         }}
-                        className={`flex items-center justify-between p-2.5 rounded-xl cursor-pointer transition-all border ${isChecked
-                            ? 'bg-indigo-50/80 dark:bg-indigo-500/15 border-indigo-300 dark:border-indigo-500/40 shadow-2xs'
-                            : 'bg-slate-50/70 dark:bg-slate-800/40 border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800'
-                          }`}
+                        className={`flex items-center justify-between p-3 rounded-2xl cursor-pointer transition-all border ${
+                          isPending
+                            ? 'bg-amber-500/10 border-amber-300/80 opacity-95'
+                            : isChecked
+                            ? 'bg-[#008069]/10 border-[#008069] shadow-2xs'
+                            : 'bg-white border border-slate-200/80 shadow-2xs hover:border-[#008069]/40 hover:bg-slate-50/50'
+                        }`}
                       >
-                        <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="flex items-center gap-3 min-w-0">
                           <Avatar src={u.avatar} name={u.name} size="sm" color={u.avatarColor} />
-                          <div className="min-w-0">
-                            <span className="font-bold text-xs text-slate-900 dark:text-white block truncate">{u.name}</span>
-                            <span className="text-[10px] text-slate-500 dark:text-slate-400 block truncate">{u.email}</span>
+                          <div className="min-w-0 text-left">
+                            <span className="font-bold text-xs text-[#111b21] block truncate">{u.name}</span>
+                            <span className="text-[11px] font-medium text-[#667781] block truncate mt-0.5">
+                              {isPending ? "Request Pending Admin Approval" : (u.phone || "No phone number")}
+                            </span>
                           </div>
                         </div>
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={() => { }}
-                          className="h-4 w-4 accent-indigo-600 rounded cursor-pointer"
-                        />
+                        {isPending ? (
+                          <span className="px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-800 border border-amber-300 text-[10px] font-extrabold uppercase tracking-wider shrink-0">
+                            Pending
+                          </span>
+                        ) : (
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => { }}
+                            className="h-4 w-4 accent-[#008069] rounded cursor-pointer shrink-0"
+                          />
+                        )}
                       </div>
                     );
                   })}
@@ -1286,17 +1387,18 @@ export const SidebarRight = ({ onClose }) => {
                   const isAdmin = u.role === 'admin' || u.role === 'Admin';
                   return !isAdmin && !group?.memberIds?.includes(uId) && uId !== authUser?.id && uId !== authUser?._id?.toString();
                 }).length === 0 && (
-                    <p className="text-xs text-slate-400 dark:text-slate-500 py-6 text-center italic font-medium">
+                    <p className="text-xs text-[#667781] py-6 text-center italic font-medium">
                       All registered users are already members of this space.
                     </p>
                   )}
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200/80">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => setIsAddMembersModalOpen(false)}
+                  className="rounded-xl border border-slate-200 font-extrabold text-xs text-[#111b21]"
                 >
                   Cancel
                 </Button>
@@ -1304,6 +1406,7 @@ export const SidebarRight = ({ onClose }) => {
                   type="submit"
                   variant="primary"
                   disabled={selectedMemberIdsToAdd.length === 0}
+                  className="rounded-xl font-extrabold text-xs bg-[#008069] hover:bg-[#006e5a] text-white shadow-md"
                 >
                   Add {selectedMemberIdsToAdd.length > 0 ? `(${selectedMemberIdsToAdd.length})` : ''} Members
                 </Button>

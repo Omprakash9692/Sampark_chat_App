@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import {
-  Users, AlertTriangle, ShieldAlert, Search,
+  Users, AlertTriangle, ShieldAlert, Search, Phone,
   Trash2, ShieldCheck, RefreshCw, BarChart2, TrendingUp, UserX, UserCheck,
   Activity, Shield, Calendar, Info, MessageSquare, ArrowLeft
 } from 'lucide-react';
@@ -424,7 +424,11 @@ const MultiMetricBarChart = ({ weekData, monthDataMap, availableMonths, yearData
               <span className="text-[10px] uppercase tracking-widest text-indigo-400 font-black">
                 {timeframe === 'week' ? 'Day View' : timeframe === 'month' ? `${selectedMonthObj?.name || 'Month'} (${selectedWeek === 'all' ? 'Overview' : selectedWeek.toUpperCase()})` : `${displayYear} Year View`}
               </span>
-              <h4 className="text-sm font-black text-white">{activePoint.name} ({activePoint.date})</h4>
+              <h4 className="text-sm font-black text-white">
+                {activePoint.date && activePoint.date.startsWith(activePoint.name)
+                  ? activePoint.date
+                  : `${activePoint.name}${activePoint.date ? ` (${activePoint.date})` : ''}`}
+              </h4>
             </div>
           </div>
 
@@ -434,13 +438,13 @@ const MultiMetricBarChart = ({ weekData, monthDataMap, availableMonths, yearData
               const periodVal = activePoint[s.key] || 0;
 
               return (
-                <div key={s.key} className="flex items-center gap-2">
-                  <span className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
-                  <div>
-                    <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{s.label}</div>
-                    <div className="text-base font-black text-white flex items-baseline gap-1.5">
-                      {periodVal.toLocaleString()}
-                    </div>
+                <div key={s.key} className="flex flex-col select-none">
+                  <div className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider flex items-center gap-1.5">
+                    <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
+                    {s.label}
+                  </div>
+                  <div className="text-base font-black text-white pl-4 mt-0.5">
+                    {periodVal.toLocaleString()}
                   </div>
                 </div>
               );
@@ -685,7 +689,8 @@ export const Dashboard = () => {
     if (u.role === 'Admin' || u.role === 'admin') return false; // Exclude admin details
 
     const matchesSearch = u.name.toLowerCase().includes(userSearch.toLowerCase()) ||
-      u.email.toLowerCase().includes(userSearch.toLowerCase());
+      u.email.toLowerCase().includes(userSearch.toLowerCase()) ||
+      (u.phone && u.phone.toLowerCase().includes(userSearch.toLowerCase()));
     if (!matchesSearch) return false;
 
     const isUserBlocked = u.statusText === 'Blocked' || u.isBlocked;
@@ -705,15 +710,19 @@ export const Dashboard = () => {
     return true;
   });
 
-  const handleResolveReport = (reportId) => {
-    updateReportStatus(reportId, 'resolved');
-    refreshAll(); // immediate dashboard refresh
+  const handleResolveReport = async (reportId) => {
+    // Optimistically update local adminReports state so UI reflects change immediately
+    setAdminReports(prev => prev.map(r => r.id === reportId ? { ...r, status: 'resolved' } : r));
+    await updateReportStatus(reportId, 'resolved');
+    fetchAdminReports(); // sync with backend
     showToast('Report Resolved', 'Compliance incident ticket marked as resolved.', 'success');
   };
 
-  const handleDismissReport = (reportId) => {
-    updateReportStatus(reportId, 'dismissed');
-    refreshAll(); // immediate dashboard refresh
+  const handleDismissReport = async (reportId) => {
+    // Optimistically update local adminReports state so UI reflects change immediately
+    setAdminReports(prev => prev.map(r => r.id === reportId ? { ...r, status: 'dismissed' } : r));
+    await updateReportStatus(reportId, 'dismissed');
+    fetchAdminReports(); // sync with backend
     showToast('Report Dismissed', 'Incident ticket dismissed without further actions.', 'info');
   };
 
@@ -896,6 +905,7 @@ export const Dashboard = () => {
                     <tr className="border-b border-slate-200 text-[10px] font-black uppercase text-slate-600 bg-slate-50/75 select-none tracking-widest">
                       <th className="px-6 py-4">User Details</th>
                       <th className="px-6 py-4">Verification Email</th>
+                      <th className="px-6 py-4">Phone Number</th>
                       <th className="px-6 py-4">Account Status</th>
                       <th className="px-6 py-4 text-right">Database Actions</th>
                     </tr>
@@ -903,7 +913,7 @@ export const Dashboard = () => {
                   <tbody className="divide-y divide-slate-100 text-xs font-semibold">
                     {filteredUsers.length === 0 ? (
                       <tr>
-                        <td colSpan="4" className="px-6 py-12 text-center text-slate-500 font-extrabold">
+                        <td colSpan="5" className="px-6 py-12 text-center text-slate-500 font-extrabold">
                           No users match the search and filter conditions.
                         </td>
                       </tr>
@@ -916,11 +926,20 @@ export const Dashboard = () => {
                               <Avatar src={u.avatar} name={u.name} size="sm" color={u.avatarColor} />
                               <div>
                                 <span className="font-black text-slate-900 block text-sm">{u.name}</span>
-                                <span className="text-[10px] text-slate-400 font-bold mt-0.5 block">{u.phone}</span>
                               </div>
                             </td>
                             <td className="px-6 py-4 select-all font-mono font-medium text-[11px] text-slate-700">
                               <span className="bg-slate-50 border border-slate-200/50 px-2 py-1 rounded-md">{u.email}</span>
+                            </td>
+                            <td className="px-6 py-4 select-all font-medium text-xs text-slate-700">
+                              {u.phone ? (
+                                <span className="inline-flex items-center gap-1.5 bg-indigo-50/70 border border-indigo-100 text-indigo-900 px-2.5 py-1 rounded-lg font-bold">
+                                  <Phone className="h-3 w-3 text-indigo-600" />
+                                  {u.phone}
+                                </span>
+                              ) : (
+                                <span className="text-slate-400 font-normal italic">N/A</span>
+                              )}
                             </td>
                             <td className="px-6 py-4 select-none">
                               <span className={`inline-flex items-center gap-2 text-xs font-extrabold ${isUserBlocked ? 'text-rose-500' : 'text-emerald-500'}`}>
@@ -1077,8 +1096,8 @@ export const Dashboard = () => {
                   const reported = getSenderProfile(rep.reportedUserId);
                   const reporterName = rep.reporterName || reporter.name || 'Unknown User';
                   const reportedName = rep.reportedName || reported.name || 'Unknown User';
-                  const reporterEmail = rep.reporterEmail || 'N/A';
-                  const reportedEmail = rep.reportedEmail || 'N/A';
+                  const reporterPhone = rep.reporterPhone || null;
+                  const reportedPhone = rep.reportedPhone || null;
                   const date = new Date(rep.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric' });
                   const isResolved = rep.status === 'resolved';
 
@@ -1099,13 +1118,13 @@ export const Dashboard = () => {
                         <div>
                           <p className="text-xs text-slate-700 leading-relaxed">
                             <span className="font-black text-slate-900">{reporterName}</span>{' '}
-                            {reporterEmail !== 'N/A' && (
-                              <span className="text-[11px] font-mono text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100 font-bold">({reporterEmail})</span>
+                            {reporterPhone && (
+                              <span className="text-[11px] font-mono text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100 font-bold">({reporterPhone})</span>
                             )}{' '}
                             reported{' '}
                             <span className="font-black text-slate-900">{reportedName}</span>{' '}
-                            {reportedEmail !== 'N/A' && (
-                              <span className="text-[11px] font-mono text-rose-600 bg-rose-50 px-2 py-0.5 rounded border border-rose-100 font-bold">({reportedEmail})</span>
+                            {reportedPhone && (
+                              <span className="text-[11px] font-mono text-rose-600 bg-rose-50 px-2 py-0.5 rounded border border-rose-100 font-bold">({reportedPhone})</span>
                             )}{' '}
                             for: <span className="font-bold text-rose-500">{rep.reason}</span>
                           </p>
@@ -1124,7 +1143,7 @@ export const Dashboard = () => {
                             onClick={() => handleResolveReport(rep.id)}
                             className="flex-1 md:flex-none text-center px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold rounded-xl transition-all text-xs cursor-pointer hover:scale-105 active:scale-95 shadow-md shadow-emerald-600/10 inline-flex items-center justify-center gap-1.5"
                           >
-                            <ShieldCheck className="h-4 w-4" /> Resolve Incident
+                            <ShieldCheck className="h-4 w-4" /> Resolve Report
                           </button>
                         </div>
                       )}

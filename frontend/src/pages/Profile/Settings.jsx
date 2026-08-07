@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 
 import { 
-  User, Mail, Camera, Lock, LogOut, Save, Loader2
+  User, Mail, Camera, Lock, LogOut, Save, Loader2, Phone
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useNotifications } from '../../context/NotificationContext';
@@ -47,8 +47,7 @@ export const Settings = () => {
     const formData = new FormData();
     formData.append("name", name);
     formData.append("bio", bio);
-    formData.append("phone", phone);
-    // email is intentionally excluded — users cannot change their email address
+    // email and phone are intentionally excluded — users cannot change their email address or phone number
     formData.append("statusText", statusText);
     if (avatarFile) {
       formData.append("avatar", avatarFile);
@@ -180,6 +179,27 @@ export const Settings = () => {
                     />
                   </div>
                   <p className="text-[10px] text-slate-400 font-bold">Your email address cannot be changed.</p>
+                </div>
+
+                {/* Phone Number field — always read-only */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2">
+                    <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500">Phone Number</label>
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-slate-100 border border-slate-200 text-[9px] font-black uppercase tracking-wider text-slate-400">
+                      <Lock className="h-2.5 w-2.5" /> Locked
+                    </span>
+                  </div>
+                  <div className="relative">
+                    <Phone className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 h-4 w-4 my-auto" />
+                    <input
+                      type="tel"
+                      value={phone}
+                      readOnly
+                      disabled
+                      className="block w-full rounded-xl bg-slate-50 text-slate-400 border border-slate-200 text-xs py-3 pl-11 outline-none transition-all font-medium shadow-xs cursor-not-allowed select-none"
+                    />
+                  </div>
+                  <p className="text-[10px] text-slate-400 font-bold">Your phone number cannot be changed.</p>
                 </div>
 
                 {/* Bio field */}

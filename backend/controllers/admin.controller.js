@@ -359,18 +359,18 @@ export const createReport = asyncHandler(async (req, res) => {
 // 5. Get All Reports (Admin Only)
 export const getReports = asyncHandler(async (req, res) => {
   const reports = await Report.find()
-    .populate("reporter", "name email avatar role")
-    .populate("reportedUser", "name email avatar role")
+    .populate("reporter", "name email phone avatar role")
+    .populate("reportedUser", "name email phone avatar role")
     .sort({ createdAt: -1 });
 
   const formattedReports = reports.map(r => ({
-    id: r._id,
+    id: r._id.toString(),
     reporterId: r.reporter?._id || "unknown",
     reporterName: r.reporter?.name || "Deleted User",
-    reporterEmail: r.reporter?.email || "N/A",
+    reporterPhone: r.reporter?.phone || null,
     reportedUserId: r.reportedUser?._id || "unknown",
     reportedName: r.reportedUser?.name || "Deleted User",
-    reportedEmail: r.reportedUser?.email || "N/A",
+    reportedPhone: r.reportedUser?.phone || null,
     messageText: r.messageText,
     reason: r.reason,
     status: r.status,

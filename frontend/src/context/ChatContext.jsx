@@ -276,7 +276,7 @@ export const ChatProvider = ({ children }) => {
       adminIds: (c.adminIds && c.adminIds.length > 0) ? c.adminIds : (c.participants ? c.participants.slice(0, 1) : []),
       permissions: c.permissions || { sendMessages: true, addMembers: true, approveMembers: false },
       joinRequests: c.joinRequests || [],
-      pinnedMessageId: c.pinnedMessageId || null
+      pinnedMessageIds: c.pinnedMessageIds || []
     }));
     setGroups(derivedGroups);
   }, [chats]);
@@ -567,11 +567,17 @@ export const ChatProvider = ({ children }) => {
     );
 
     setChats(prevChats =>
-      prevChats.map(c => (c.pinnedMessageId === messageId ? { ...c, pinnedMessageId: null } : c))
+      prevChats.map(c => ({
+        ...c,
+        pinnedMessageIds: (c.pinnedMessageIds || []).filter(p => p.id !== messageId)
+      }))
     );
 
     setGroups(prevGroups =>
-      prevGroups.map(g => (g.pinnedMessageId === messageId ? { ...g, pinnedMessageId: null } : g))
+      prevGroups.map(g => ({
+        ...g,
+        pinnedMessageIds: (g.pinnedMessageIds || []).filter(p => p.id !== messageId)
+      }))
     );
 
     const deleteOnBackend = async () => {
@@ -591,34 +597,60 @@ export const ChatProvider = ({ children }) => {
     const targetChat = chats.find(c => c.id === chatId);
     if (!targetChat) return false;
 
-    const shouldPin = targetChat.pinnedMessageId !== messageId;
-    const nextPinnedMessageId = shouldPin ? messageId : null;
-    const nextPinnedUntil = shouldPin ? new Date(Date.now() + durationHours * 60 * 60 * 1000).toISOString() : null;
+    const currentPins = targetChat.pinnedMessageIds || [];
+    const alreadyPinned = currentPins.some(p => p.id === messageId);
 
-    setChats(prevChats =>
-      prevChats.map(c => (
-        c.id === chatId ? { ...c, pinnedMessageId: nextPinnedMessageId, pinnedUntil: nextPinnedUntil } : c
-      ))
-    );
+    if (alreadyPinned) {
+      // Optimistic unpin: remove from array
+      setChats(prevChats =>
+        prevChats.map(c =>
+          c.id === chatId
+            ? { ...c, pinnedMessageIds: (c.pinnedMessageIds || []).filter(p => p.id !== messageId) }
+            : c
+        )
+      );
+    } else {
+      // Optimistic pin: add to front of array
+      const newPin = {
+        id: messageId,
+        pinnedUntil: new Date(Date.now() + durationHours * 60 * 60 * 1000).toISOString()
+      };
+      setChats(prevChats =>
+        prevChats.map(c =>
+          c.id === chatId
+            ? { ...c, pinnedMessageIds: [newPin, ...(c.pinnedMessageIds || [])] }
+            : c
+        )
+      );
+    }
 
-    // Save pinned message state to the backend database
+    // Persist to backend
     const pinOnBackend = async () => {
       try {
-        await authFetch(`http://localhost:5000/api/chats/${chatId}/pin-message`, {
+        const res = await authFetch(`http://localhost:5000/api/chats/${chatId}/pin-message`, {
           method: "PUT",
-          headers: {
-            "Content-Type": "application/json"
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ messageId, durationHours }),
           credentials: "include"
         });
+        if (res.ok) {
+          const result = await res.json();
+          // Sync confirmed pinnedMessageIds from server
+          if (result.success && result.data?.pinnedMessageIds !== undefined) {
+            setChats(prevChats =>
+              prevChats.map(c =>
+                c.id === chatId ? { ...c, pinnedMessageIds: result.data.pinnedMessageIds } : c
+              )
+            );
+          }
+        }
       } catch (err) {
         console.error("Failed to pin message on backend:", err);
       }
     };
     pinOnBackend();
 
-    return shouldPin;
+    return !alreadyPinned;
   };
 
   // Check for expired pinned messages periodically
@@ -627,16 +659,19 @@ export const ChatProvider = ({ children }) => {
       const now = Date.now();
       setChats(prevChats =>
         prevChats.map(c => {
-          if (c.pinnedMessageId && c.pinnedUntil && now >= new Date(c.pinnedUntil).getTime()) {
-            return { ...c, pinnedMessageId: null, pinnedUntil: null };
-          }
-          return c;
+          if (!c.pinnedMessageIds || c.pinnedMessageIds.length === 0) return c;
+          const active = c.pinnedMessageIds.filter(
+            p => !p.pinnedUntil || new Date(p.pinnedUntil).getTime() > now
+          );
+          if (active.length === c.pinnedMessageIds.length) return c;
+          return { ...c, pinnedMessageIds: active };
         })
       );
     };
     const timer = setInterval(checkPinExpirations, 5000);
     return () => clearInterval(timer);
   }, []);
+
 
   const addReaction = (messageId, emoji) => {
     // 1. Optimistic Update (instant UI feedback)
@@ -816,8 +851,21 @@ export const ChatProvider = ({ children }) => {
   };
 
   const toggleBlockUserOnBackend = async (targetUserId) => {
+    if (!targetUserId) return;
+    const targetStr = targetUserId.toString();
+
+    // Optimistic UI state update: toggle targetUserId in blockedUserIds immediately
+    setBlockedUserIds(prev => {
+      const prevStrings = (prev || []).map(id => id.toString());
+      if (prevStrings.includes(targetStr)) {
+        return prevStrings.filter(id => id !== targetStr);
+      } else {
+        return [...prevStrings, targetStr];
+      }
+    });
+
     try {
-      const res = await authFetch(`http://localhost:5000/api/auth/block/${targetUserId}`, {
+      const res = await authFetch(`http://localhost:5000/api/auth/block/${targetStr}`, {
         method: "PUT",
         credentials: "include"
       });
@@ -825,9 +873,6 @@ export const ChatProvider = ({ children }) => {
         const result = await res.json();
         if (result.success && result.data?.blockedUsers) {
           setBlockedUserIds(result.data.blockedUsers);
-          if (typeof fetchDbUsers === 'function') {
-            fetchDbUsers();
-          }
         }
       }
     } catch (err) {
@@ -1079,6 +1124,9 @@ export const ChatProvider = ({ children }) => {
           );
           return { success: true, isPending: !!result.data.isPending, message: result.message };
         }
+      } else {
+        const errJson = await res.json().catch(() => ({}));
+        return { success: false, message: errJson.message || "Request already sent or member is already added." };
       }
       return { success: false };
     } catch (err) {

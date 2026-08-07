@@ -7,7 +7,7 @@ import { initSocket, userSockets, userActiveChats } from "./sockets/socket.js";
 
 const PORT = process.env.PORT || 5000;
 
-// Top-level await ensures DB is connected before starting HTTP and Sockets
+
 await connectDB();
 
 const server = http.createServer(app);

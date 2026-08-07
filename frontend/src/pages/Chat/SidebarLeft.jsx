@@ -203,7 +203,7 @@ export const SidebarLeft = ({ closeMobileSidebar }) => {
       // Search Filter
       const matchesSearch = searchQuery === '' || 
         info.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (isDirect && info.email?.toLowerCase().includes(searchQuery.toLowerCase()));
+        (isDirect && ((info.phone && info.phone.toLowerCase().includes(searchQuery.toLowerCase())) || info.email?.toLowerCase().includes(searchQuery.toLowerCase())));
 
       // Archived filter tab handling
       if (activeFilter === 'archived') {
@@ -463,7 +463,7 @@ export const SidebarLeft = ({ closeMobileSidebar }) => {
         {/* Floating Plus Action Button */}
         <div className="absolute bottom-5 right-5 z-20">
           {isPlusMenuOpen && (
-            <div className="mb-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl p-1.5 min-w-48 select-none space-y-1 animate-in fade-in slide-in-from-bottom-2 duration-150">
+            <div className="mb-2 bg-white border border-slate-200/90 rounded-2xl shadow-2xl p-2 min-w-52 select-none space-y-1.5 animate-in fade-in slide-in-from-bottom-2 duration-150">
               <button
                 onClick={() => {
                   setIsPlusMenuOpen(false);
@@ -474,14 +474,14 @@ export const SidebarLeft = ({ closeMobileSidebar }) => {
                   setGroupAvatarUrl('');
                   setIsGroupModalOpen(true);
                 }}
-                className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-200 hover:bg-indigo-50 dark:hover:bg-indigo-500/15 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors cursor-pointer text-left"
+                className="w-full flex items-center gap-3 p-3 rounded-xl text-xs font-bold text-[#111b21] hover:bg-[#008069]/10 hover:text-[#008069] transition-colors cursor-pointer text-left bg-white border border-slate-200/60 shadow-2xs"
               >
-                <div className="p-1.5 rounded-lg bg-indigo-100 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400">
+                <div className="p-2 rounded-lg bg-[#008069]/10 text-[#008069] shrink-0">
                   <Users className="h-4 w-4" />
                 </div>
-                <div>
-                  <span className="block font-black text-slate-900 dark:text-white">New Group</span>
-                  <span className="text-[9px] text-slate-500 dark:text-slate-400 font-semibold block">Create group with members</span>
+                <div className="min-w-0">
+                  <span className="block font-black text-[#111b21] truncate">New Group</span>
+                  <span className="text-[10px] text-[#667781] font-medium block truncate mt-0.5">Create group with members</span>
                 </div>
               </button>
 
@@ -492,14 +492,14 @@ export const SidebarLeft = ({ closeMobileSidebar }) => {
                   setContactName('');
                   setIsNewContactModalOpen(true);
                 }}
-                className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-200 hover:bg-emerald-50 dark:hover:bg-emerald-500/15 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors cursor-pointer text-left"
+                className="w-full flex items-center gap-3 p-3 rounded-xl text-xs font-bold text-[#111b21] hover:bg-[#008069]/10 hover:text-[#008069] transition-colors cursor-pointer text-left bg-white border border-slate-200/60 shadow-2xs"
               >
-                <div className="p-1.5 rounded-lg bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">
+                <div className="p-2 rounded-lg bg-[#008069]/10 text-[#008069] shrink-0">
                   <UserPlus className="h-4 w-4" />
                 </div>
-                <div>
-                  <span className="block font-black text-slate-900 dark:text-white">New Contact</span>
-                  <span className="text-[9px] text-slate-500 dark:text-slate-400 font-semibold block">Search DB user by email</span>
+                <div className="min-w-0">
+                  <span className="block font-black text-[#111b21] truncate">New Contact</span>
+                  <span className="text-[10px] text-[#667781] font-medium block truncate mt-0.5">Search DB user by email</span>
                 </div>
               </button>
             </div>
@@ -508,7 +508,7 @@ export const SidebarLeft = ({ closeMobileSidebar }) => {
           <button
             onClick={() => setIsPlusMenuOpen(!isPlusMenuOpen)}
             className={`p-3.5 rounded-full bg-[#00a884] hover:bg-[#008f6f] text-white shadow-md transition-all cursor-pointer transform hover:scale-105 active:scale-95 flex items-center justify-center ${
-              isPlusMenuOpen ? 'rotate-45 bg-slate-900 dark:bg-slate-800' : ''
+              isPlusMenuOpen ? 'rotate-45 bg-[#111b21]' : ''
             }`}
             title="New Action Menu"
           >
@@ -527,17 +527,17 @@ export const SidebarLeft = ({ closeMobileSidebar }) => {
       >
         <div className="space-y-4 text-left p-1 select-none">
           <div className="relative">
-            <Search className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 h-4.5 w-4.5 my-auto" />
+            <Search className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#667781] h-4.5 w-4.5 my-auto" />
             <input
               type="text"
-              placeholder="Search user by name or email..."
+              placeholder="Search user by name or phone number..."
               value={contactEmail}
               onChange={(e) => setContactEmail(e.target.value)}
-              className="block w-full rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-xs py-2.5 pl-10 outline-none text-slate-800 dark:text-white font-semibold"
+              className="block w-full rounded-xl bg-[#f0f4f8] border border-slate-200/80 focus:border-[#008069] focus:ring-1 focus:ring-[#008069] text-xs py-2.5 pl-10 pr-4 outline-none text-[#111b21] placeholder-[#667781] font-medium"
             />
           </div>
 
-          <div className="max-h-64 overflow-y-auto border border-slate-200 dark:border-slate-800 rounded-xl p-2 space-y-1.5 bg-slate-50 dark:bg-slate-950/20 no-scrollbar">
+          <div className="max-h-64 overflow-y-auto border border-slate-200/80 rounded-xl p-2 space-y-1.5 bg-[#f8fafc] no-scrollbar">
             {allUsers
               .filter(u => {
                 const uId = u.id || u._id?.toString();
@@ -546,6 +546,7 @@ export const SidebarLeft = ({ closeMobileSidebar }) => {
                 return uId !== 'user_me' && uId !== myRealId && u.email !== user?.email &&
                   !isAdmin &&
                   (u.name.toLowerCase().includes(contactEmail.toLowerCase()) || 
+                   (u.phone && u.phone.toLowerCase().includes(contactEmail.toLowerCase())) ||
                    u.email.toLowerCase().includes(contactEmail.toLowerCase()));
               })
               .map((u) => {
@@ -554,13 +555,13 @@ export const SidebarLeft = ({ closeMobileSidebar }) => {
                   <div
                     key={targetId}
                     onClick={() => handleStartDirectChat(u)}
-                    className="p-2.5 rounded-xl flex items-center justify-between hover:bg-slate-100 dark:hover:bg-slate-900/60 cursor-pointer transition-colors border bg-white dark:bg-slate-900 border-slate-200/60 dark:border-slate-800/60"
+                    className="p-3 rounded-2xl flex items-center justify-between hover:bg-slate-50 cursor-pointer transition-colors border bg-white border-slate-200/80 shadow-2xs"
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <Avatar src={u.avatar} name={u.name} size="sm" color={u.avatarColor} />
                       <div className="text-left min-w-0">
-                        <div className="text-xs font-bold text-slate-900 dark:text-white truncate">{u.name}</div>
-                        <div className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold truncate">{u.email}</div>
+                        <div className="text-xs font-bold text-[#111b21] truncate">{u.name}</div>
+                        <div className="text-[11px] text-[#667781] font-medium truncate mt-0.5">{u.phone || "No phone number"}</div>
                       </div>
                     </div>
                   </div>
@@ -570,20 +571,20 @@ export const SidebarLeft = ({ closeMobileSidebar }) => {
                 const uId = u.id || u._id?.toString();
                 const myRealId = user?.id || user?._id?.toString();
                 const isAdmin = u.role === 'admin' || u.role === 'Admin';
-                return uId !== 'user_me' && uId !== myRealId && u.email !== user?.email && !isAdmin && (u.name.toLowerCase().includes(contactEmail.toLowerCase()) || u.email.toLowerCase().includes(contactEmail.toLowerCase()));
+                return uId !== 'user_me' && uId !== myRealId && u.email !== user?.email && !isAdmin && (u.name.toLowerCase().includes(contactEmail.toLowerCase()) || (u.phone && u.phone.toLowerCase().includes(contactEmail.toLowerCase())) || u.email.toLowerCase().includes(contactEmail.toLowerCase()));
               }).length === 0 && (
-                <div className="p-4 text-center text-xs text-slate-500 font-semibold">
+                <div className="p-4 text-center text-xs text-[#667781] font-semibold">
                   No users found
                 </div>
               )}
           </div>
 
-          <div className="flex justify-end gap-2.5 pt-4 border-t border-slate-100 dark:border-slate-800">
+          <div className="flex justify-end gap-2.5 pt-4 border-t border-slate-200/80">
             <Button
               type="button"
               variant="outline"
               onClick={() => setIsNewContactModalOpen(false)}
-              className="rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-xs font-extrabold"
+              className="rounded-xl border border-slate-200 text-xs font-extrabold text-[#111b21]"
             >
               Cancel
             </Button>
@@ -613,28 +614,28 @@ export const SidebarLeft = ({ closeMobileSidebar }) => {
           {groupStep === 1 && (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-600 dark:text-slate-400">
+                <span className="text-xs font-medium text-[#54656f]">
                   Select members to add to the group ({selectedMembers.length} selected)
                 </span>
               </div>
 
               {/* Selected member chips */}
               {selectedMembers.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 p-2 bg-slate-100/70 dark:bg-slate-950 rounded-xl max-h-24 overflow-y-auto border border-slate-200/60 dark:border-slate-800">
+                <div className="flex flex-wrap gap-1.5 p-2 bg-[#f0f4f8] rounded-xl max-h-24 overflow-y-auto border border-slate-200/80">
                   {selectedMembers.map(memberId => {
                     const m = allUsers.find(u => u.id === memberId || u._id?.toString() === memberId);
                     if (!m) return null;
                     return (
                       <div 
                         key={memberId} 
-                        className="inline-flex items-center gap-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 pl-1.5 pr-2.5 py-1 rounded-full text-[10px] font-black text-slate-800 dark:text-slate-200 shadow-2xs"
+                        className="inline-flex items-center gap-1.5 bg-[#008069]/10 border border-[#008069]/30 pl-1.5 pr-2.5 py-1 rounded-full text-[11px] font-extrabold text-[#008069] shadow-2xs"
                       >
                         <Avatar src={m.avatar} name={m.name} size="xs" color={m.avatarColor} />
                         <span>{m.name.split(' ')[0]}</span>
                         <button 
                           type="button" 
                           onClick={() => handleToggleMember(memberId)}
-                          className="text-slate-400 hover:text-rose-500 transition-colors ml-0.5"
+                          className="text-[#008069] hover:text-rose-500 transition-colors ml-0.5"
                         >
                           <X className="h-3 w-3" />
                         </button>
@@ -646,18 +647,18 @@ export const SidebarLeft = ({ closeMobileSidebar }) => {
 
               {/* In-modal member search */}
               <div className="relative">
-                <Search className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 h-4.5 w-4.5 my-auto" />
+                <Search className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#667781] h-4.5 w-4.5 my-auto" />
                 <input
                   type="text"
-                  placeholder="Search user by name or email..."
+                  placeholder="Search user by name or phone number..."
                   value={memberSearchQuery}
                   onChange={(e) => setMemberSearchQuery(e.target.value)}
-                  className="block w-full rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-xs py-2.5 pl-10 outline-none text-slate-800 dark:text-white font-semibold"
+                  className="block w-full rounded-xl bg-[#f0f4f8] border border-slate-200/80 focus:border-[#008069] focus:ring-1 focus:ring-[#008069] text-xs py-2.5 pl-10 pr-4 outline-none text-[#111b21] placeholder-[#667781] font-medium"
                 />
               </div>
 
               {/* Scrollable list of members */}
-              <div className="max-h-56 overflow-y-auto border border-slate-200 dark:border-slate-800 rounded-xl p-2 space-y-1.5 bg-slate-50 dark:bg-slate-950/20 no-scrollbar">
+              <div className="max-h-56 overflow-y-auto border border-slate-200/80 rounded-xl p-2 space-y-1.5 bg-[#f8fafc] no-scrollbar">
                 {allUsers
                   .filter(u => {
                     const uId = u.id || u._id?.toString();
@@ -666,6 +667,7 @@ export const SidebarLeft = ({ closeMobileSidebar }) => {
                     return uId !== 'user_me' && uId !== myRealId && u.email !== user?.email &&
                       !isAdmin &&
                       (u.name.toLowerCase().includes(memberSearchQuery.toLowerCase()) || 
+                       (u.phone && u.phone.toLowerCase().includes(memberSearchQuery.toLowerCase())) ||
                        u.email.toLowerCase().includes(memberSearchQuery.toLowerCase()));
                   })
                   .map((u) => {
@@ -676,36 +678,37 @@ export const SidebarLeft = ({ closeMobileSidebar }) => {
                         key={uId}
                         onClick={() => handleToggleMember(uId)}
                         className={`
-                          p-2.5 rounded-xl flex items-center justify-between hover:bg-slate-100 dark:hover:bg-slate-900/60 cursor-pointer transition-colors border ${
+                          p-3 rounded-2xl flex items-center justify-between cursor-pointer transition-all border ${
                             isSelected 
-                              ? 'bg-indigo-50/80 dark:bg-indigo-500/15 border-indigo-300 dark:border-indigo-500/40' 
-                              : 'bg-white dark:bg-slate-900 border-slate-200/60 dark:border-slate-800/60'
+                              ? 'bg-[#008069]/10 border-[#008069] shadow-2xs' 
+                              : 'bg-white border-slate-200/80 shadow-2xs hover:bg-slate-50'
                           }
                         `}
                       >
                         <div className="flex items-center gap-3 min-w-0">
                           <Avatar src={u.avatar} name={u.name} size="sm" color={u.avatarColor} />
                           <div className="text-left min-w-0">
-                            <div className="text-xs font-bold text-slate-900 dark:text-white truncate">{u.name}</div>
-                            <div className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold truncate">{u.email}</div>
+                            <div className="text-xs font-bold text-[#111b21] truncate">{u.name}</div>
+                            <div className="text-[11px] text-[#667781] font-medium truncate mt-0.5">{u.phone || "No phone number"}</div>
                           </div>
                         </div>
                         <input
                           type="checkbox"
                           checked={isSelected}
                           onChange={() => {}} // Handled by container click
-                          className="h-4 w-4 accent-indigo-600 rounded cursor-pointer"
+                          className="h-4 w-4 accent-[#008069] rounded cursor-pointer"
                         />
                       </div>
                     );
                   })}
               </div>
 
-              <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-800">
+              <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-200/80">
                 <Button 
                   type="button" 
                   variant="outline" 
                   onClick={() => setIsGroupModalOpen(false)}
+                  className="rounded-xl border border-slate-200 font-extrabold text-xs text-[#111b21]"
                 >
                   Cancel
                 </Button>
@@ -714,7 +717,7 @@ export const SidebarLeft = ({ closeMobileSidebar }) => {
                   variant="primary"
                   disabled={selectedMembers.length === 0}
                   onClick={() => setGroupStep(2)}
-                  className="gap-1.5"
+                  className="rounded-xl font-extrabold text-xs bg-[#008069] hover:bg-[#006e5a] text-white shadow-md gap-1.5"
                 >
                   Next <ChevronRight className="h-4 w-4" />
                 </Button>
@@ -733,7 +736,7 @@ export const SidebarLeft = ({ closeMobileSidebar }) => {
                     src={groupAvatarUrl}
                     name={groupName || "New Group"}
                     size="xl"
-                    className="h-20 w-20 border-2 border-slate-200 dark:border-slate-800 object-cover shadow-md rounded-full transition-transform group-hover:scale-105"
+                    className="h-20 w-20 border-2 border-slate-200 object-cover shadow-md rounded-full transition-transform group-hover:scale-105"
                   />
                   <div className="absolute inset-0 bg-slate-950/45 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                     <Camera className="h-5 w-5 text-white" />
@@ -746,14 +749,14 @@ export const SidebarLeft = ({ closeMobileSidebar }) => {
                     className="hidden"
                   />
                 </div>
-                <span className="text-[10px] font-black uppercase text-slate-500 dark:text-slate-400 tracking-wider">
+                <span className="text-[10px] font-black uppercase text-[#667781] tracking-wider">
                   {isUploadingGroupAvatar ? "Uploading icon..." : "Group Space Icon (Click to change)"}
                 </span>
               </div>
 
               {/* Group Name Input */}
               <div className="space-y-1.5">
-                <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                <label className="block text-[10px] font-black text-[#54656f] uppercase tracking-wider">
                   Group Name <span className="text-rose-500 font-bold">*</span>
                 </label>
                 <input
@@ -762,26 +765,26 @@ export const SidebarLeft = ({ closeMobileSidebar }) => {
                   value={groupName}
                   onChange={(e) => setGroupName(e.target.value)}
                   required
-                  className="block w-full rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-xs py-3 px-4 outline-none text-slate-900 dark:text-white transition-all font-semibold shadow-xs"
+                  className="block w-full rounded-xl bg-[#f0f4f8] border border-slate-200/80 focus:border-[#008069] focus:ring-1 focus:ring-[#008069] text-xs py-3 px-4 outline-none text-[#111b21] placeholder-[#667781] font-semibold"
                 />
               </div>
 
               {/* Description Textarea */}
               <div className="space-y-1.5">
-                <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                <label className="block text-[10px] font-black text-[#54656f] uppercase tracking-wider">
                   Description (Optional)
                 </label>
                 <textarea
                   placeholder="Provide a short summary of what this group space is about..."
                   value={groupDesc}
                   onChange={(e) => setGroupDesc(e.target.value)}
-                  className="block w-full rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-xs p-3.5 outline-none text-slate-900 dark:text-white transition-all min-h-[70px] shadow-xs resize-none font-semibold"
+                  className="block w-full rounded-xl bg-[#f0f4f8] border border-slate-200/80 focus:border-[#008069] focus:ring-1 focus:ring-[#008069] text-xs p-3.5 outline-none text-[#111b21] placeholder-[#667781] font-semibold min-h-[70px] resize-none"
                 />
               </div>
 
               {/* Selected Members Roster Preview */}
-              <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-                <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+              <div className="space-y-2 pt-2 border-t border-slate-200/80">
+                <label className="block text-[10px] font-black text-[#54656f] uppercase tracking-wider">
                   Selected Members ({selectedMembers.length})
                 </label>
 
@@ -792,19 +795,19 @@ export const SidebarLeft = ({ closeMobileSidebar }) => {
                     return (
                       <div 
                         key={memberId}
-                        className="flex items-center justify-between p-2 rounded-xl bg-slate-100/70 dark:bg-slate-900 border border-slate-200/70 dark:border-slate-800"
+                        className="flex items-center justify-between p-2.5 rounded-2xl bg-white border border-slate-200/80 shadow-2xs"
                       >
                         <div className="flex items-center gap-2.5 min-w-0">
                           <Avatar src={m.avatar} name={m.name} size="sm" color={m.avatarColor} />
                           <div className="min-w-0 text-left">
-                            <span className="font-bold text-xs text-slate-900 dark:text-white block truncate">{m.name}</span>
-                            <span className="text-[10px] text-slate-500 dark:text-slate-400 block truncate">{m.email}</span>
+                            <span className="font-bold text-xs text-[#111b21] block truncate">{m.name}</span>
+                            <span className="text-[10px] text-[#667781] block truncate">{m.phone || "No phone number"}</span>
                           </div>
                         </div>
                         <button
                           type="button"
                           onClick={() => handleToggleMember(memberId)}
-                          className="p-1 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 cursor-pointer transition-colors"
+                          className="p-1 rounded-lg text-[#667781] hover:text-rose-500 hover:bg-rose-50 cursor-pointer transition-colors"
                         >
                           <X className="h-4 w-4" />
                         </button>
@@ -815,16 +818,16 @@ export const SidebarLeft = ({ closeMobileSidebar }) => {
               </div>
 
               {/* Action buttons */}
-              <div className="flex justify-between items-center pt-4 border-t border-slate-100 dark:border-slate-800">
+              <div className="flex justify-between items-center pt-4 border-t border-slate-200/80">
                 <Button 
                   type="button" 
                   variant="outline" 
                   onClick={() => setGroupStep(1)}
-                  className="gap-1.5"
+                  className="rounded-xl border border-slate-200 font-extrabold text-xs text-[#111b21] gap-1.5"
                 >
                   <ArrowLeft className="h-4 w-4" /> Back
                 </Button>
-                <Button type="submit" variant="primary" className="rounded-xl shadow-md">
+                <Button type="submit" variant="primary" className="rounded-xl font-extrabold text-xs bg-[#008069] hover:bg-[#006e5a] text-white shadow-md">
                   Create Group Space
                 </Button>
               </div>

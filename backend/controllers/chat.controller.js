@@ -63,6 +63,16 @@ const formatConversation = (conv, currentUserId, unreadCount = 0) => {
   const isMarkedUnread = (conv.unreadFor || []).some(id => (id._id ? id._id.toString() : id.toString()) === currentUserId.toString());
   const effectiveUnreadCount = isMarkedUnread ? Math.max(unreadCount, 1) : unreadCount;
 
+  // Build array of active pinned message ids (filter expired ones)
+  const now = new Date();
+  const pinnedMessageIds = (conv.pinnedMessages || []).filter(p => {
+    const msgId = p.message?._id ? p.message._id.toString() : (p.message ? p.message.toString() : null);
+    return msgId && (!p.pinnedUntil || new Date(p.pinnedUntil) > now);
+  }).map(p => ({
+    id: p.message?._id ? p.message._id.toString() : p.message.toString(),
+    pinnedUntil: p.pinnedUntil ? p.pinnedUntil.toISOString() : null
+  }));
+
   return {
     id: conv._id.toString(),
     type: conv.type,
@@ -73,7 +83,7 @@ const formatConversation = (conv, currentUserId, unreadCount = 0) => {
     archived: (conv.archivedBy || []).some(id => (id._id ? id._id.toString() : id.toString()) === currentUserId.toString()),
     favorite: (conv.favoriteBy || []).some(id => (id._id ? id._id.toString() : id.toString()) === currentUserId.toString()),
     isUnread: isMarkedUnread,
-    unreadCount: effectiveUnreadCount, 
+    unreadCount: effectiveUnreadCount,
     groupId: conv.type === "group" ? conv._id.toString() : undefined,
     participants,
     adminIds,
@@ -82,8 +92,7 @@ const formatConversation = (conv, currentUserId, unreadCount = 0) => {
     createdTime: lastMsgObj && lastMsgObj.createdAt ? lastMsgObj.createdAt : conv.createdAt,
     lastMessageId: lastMsgIdStr,
     lastMessage: lastMsgFormatted,
-    pinnedMessageId: conv.pinnedMessage ? (conv.pinnedMessage._id ? conv.pinnedMessage._id.toString() : conv.pinnedMessage.toString()) : null,
-    pinnedUntil: conv.pinnedUntil ? conv.pinnedUntil.toISOString() : null,
+    pinnedMessageIds,
     isBlocked: conv.isBlocked || false
   };
 };
@@ -495,28 +504,52 @@ export const togglePinMessage = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Conversation not found");
   }
 
-  // Toggle: if already pinned, unpin. Otherwise pin.
-  const isPinned = conversation.pinnedMessage && conversation.pinnedMessage.toString() === messageId;
-  if (isPinned) {
-    conversation.pinnedMessage = null;
-    conversation.pinnedUntil = null;
+  if (!conversation.pinnedMessages) conversation.pinnedMessages = [];
+
+  // Remove expired pins first
+  const now = new Date();
+  conversation.pinnedMessages = conversation.pinnedMessages.filter(
+    p => !p.pinnedUntil || new Date(p.pinnedUntil) > now
+  );
+
+  // Check if already pinned
+  const existingIdx = conversation.pinnedMessages.findIndex(
+    p => p.message && p.message.toString() === messageId
+  );
+
+  let isPinned = false;
+  if (existingIdx > -1) {
+    // Unpin: remove from array
+    conversation.pinnedMessages.splice(existingIdx, 1);
+    isPinned = false;
   } else {
-    // Verify the message belongs to this conversation
+    // Pin: verify message belongs to this conversation
     const message = await Message.findOne({ _id: messageId, conversation: chatId });
     if (!message) {
       throw new ApiError(404, "Message not found in this conversation");
     }
-    conversation.pinnedMessage = messageId;
-    const hours = durationHours ? parseInt(durationHours, 10) : 168; // Default 7 days (168h)
-    conversation.pinnedUntil = new Date(Date.now() + hours * 60 * 60 * 1000);
+    const hours = durationHours ? parseInt(durationHours, 10) : 168; // Default 7 days
+    // Add to front of array
+    conversation.pinnedMessages.unshift({
+      message: messageId,
+      pinnedUntil: new Date(Date.now() + hours * 60 * 60 * 1000)
+    });
+    isPinned = true;
   }
 
   await conversation.save();
 
+  const now2 = new Date();
+  const pinnedMessageIds = conversation.pinnedMessages.filter(p => {
+    return p.message && (!p.pinnedUntil || new Date(p.pinnedUntil) > now2);
+  }).map(p => ({
+    id: p.message.toString(),
+    pinnedUntil: p.pinnedUntil ? p.pinnedUntil.toISOString() : null
+  }));
+
   return res.status(200).json(
-    new ApiResponse(200, isPinned ? "Message unpinned" : "Message pinned", {
-      pinnedMessageId: conversation.pinnedMessage ? conversation.pinnedMessage.toString() : null,
-      pinnedUntil: conversation.pinnedUntil ? conversation.pinnedUntil.toISOString() : null
+    new ApiResponse(200, isPinned ? "Message pinned" : "Message unpinned", {
+      pinnedMessageIds
     })
   );
 });
@@ -695,24 +728,38 @@ export const uploadAttachment = asyncHandler(async (req, res) => {
       ? "weChat/chat_images"
       : "weChat/chat_files";
 
-    const cloudinaryResult = await uploadToCloudinary(req.file.path, folder);
+    let fileUrl = '';
+    let uploadedToCloudinary = false;
 
-    // Remove temporary local file if not already cleaned up by uploadToCloudinary
-    if (fs.existsSync(req.file.path)) {
-      fs.unlink(req.file.path, (err) => {
-        if (err) console.error("Failed to remove temp upload file:", err);
-      });
+    try {
+      const cloudinaryResult = await uploadToCloudinary(req.file.path, folder);
+      if (cloudinaryResult && cloudinaryResult.secure_url) {
+        fileUrl = cloudinaryResult.secure_url;
+        uploadedToCloudinary = true;
+      }
+    } catch (cloudErr) {
+      console.warn("Cloudinary upload failed, falling back to local server storage:", cloudErr.message || cloudErr);
+      fileUrl = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
+    }
+
+    if (!fileUrl) {
+      fileUrl = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
+    }
+
+    // Clean up temp file if uploaded to Cloudinary
+    if (uploadedToCloudinary && fs.existsSync(req.file.path)) {
+      try { fs.unlinkSync(req.file.path); } catch (err) {}
     }
 
     return res.status(200).json(
       new ApiResponse(200, "File uploaded successfully", {
-        url: cloudinaryResult.secure_url,
+        url: fileUrl,
         name: req.file.originalname,
         size: req.file.size
       })
     );
   } catch (error) {
-    console.error("Cloudinary upload error:", error);
+    console.error("Upload error:", error);
     if (req.file && req.file.path && fs.existsSync(req.file.path)) {
       try { fs.unlinkSync(req.file.path); } catch (e) {}
     }
@@ -962,11 +1009,6 @@ export const addMembersToGroup = asyncHandler(async (req, res) => {
     id => id.toString() === myId.toString()
   );
 
-  // Check if non-admins are allowed to add members
-  if (!isCurrentAdmin && conversation.permissions?.addMembers === false) {
-    throw new ApiError(403, "Only group admins are allowed to add new members to this group");
-  }
-
   const existingIdStrs = conversation.participants.map(id => id.toString());
   const existingPendingIdStrs = (conversation.joinRequests || []).map(r => (r.user?._id ? r.user._id.toString() : r.user.toString()));
 
@@ -978,8 +1020,9 @@ export const addMembersToGroup = asyncHandler(async (req, res) => {
     throw new ApiError(400, "All selected users are already members or have pending join requests");
   }
 
-  // Check if Admin Approval is enabled and current user is NOT an admin
-  if (!isCurrentAdmin && conversation.permissions?.approveMembers === true) {
+  // If current user is NOT an admin: create a join request for admin approval
+  if (!isCurrentAdmin) {
+    if (!conversation.joinRequests) conversation.joinRequests = [];
     newMemberIds.forEach(id => {
       conversation.joinRequests.push({
         user: id,
@@ -1119,6 +1162,15 @@ export const leaveGroup = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Group chat not found");
   }
 
+  const isCurrentAdmin = conversation.adminIds.some(id => id.toString() === myId.toString());
+  const remainingAdmins = conversation.adminIds.filter(id => id.toString() !== myId.toString());
+  const remainingParticipants = conversation.participants.filter(id => id.toString() !== myId.toString());
+
+  // Rule: If user is the ONLY admin and there are other remaining participants, require appointing an admin first
+  if (isCurrentAdmin && remainingAdmins.length === 0 && remainingParticipants.length > 0) {
+    throw new ApiError(400, "You are the only admin of this group. Please assign another member as an admin before leaving.");
+  }
+
   // Remove current user from participants and adminIds
   conversation.participants = conversation.participants.filter(
     id => id.toString() !== myId.toString()
@@ -1132,10 +1184,6 @@ export const leaveGroup = asyncHandler(async (req, res) => {
     await Message.deleteMany({ conversation: chatId });
     await Conversation.deleteOne({ _id: chatId });
   } else {
-    // If no admin remains, auto-promote the first remaining participant
-    if (conversation.adminIds.length === 0) {
-      conversation.adminIds.push(conversation.participants[0]);
-    }
     await conversation.save();
   }
 

@@ -26,6 +26,12 @@ export const Login = () => {
     setErrorMsg('');
     try {
       const loggedInUser = await login(data.email, data.password);
+      if (!loggedInUser.isVerified) {
+        sessionStorage.setItem('pendingVerificationEmail', loggedInUser.email);
+        showToast("Email Verification Required", "Please verify your email address to complete login.", "warning");
+        navigate('/email-verification');
+        return;
+      }
       showToast("Access Granted", "Logged in successfully!", "success");
       navigate(loggedInUser.role === 'Admin' ? '/admin' : '/chat');
     } catch (err) {

@@ -6,7 +6,7 @@ import {
   Phone, Search, Info, MoreVertical, Send, Smile, Paperclip, 
   Mic, Image as ImageIcon, FileText, Check, CheckCheck, Trash2, Edit2, 
   CornerUpLeft, Reply, Forward, Pin, Play, Pause, X, Trash, Sparkles, Download, Video, Lock,
-  ChevronDown, Copy, Star, Plus
+  ChevronDown, Copy, Star, Plus, UserX, Loader2
 } from 'lucide-react';
 import { useChat } from '../../context/ChatContext';
 import { useAuth } from '../../context/AuthContext';
@@ -137,7 +137,7 @@ const renderTextWithLinks = (text)=> {
       href={part}
       target="_blank"
       rel="noopener noreferrer"
-      className='text-blue-400 underline underline-offset-2 hover:text-blue-300 break-all'
+      className='text-blue-500 underline underline-offset-2 hover:text-blue-600 break-all relative z-10'
       onClick={(e)=> e.stopPropagation()}
       >
         {part}
@@ -152,7 +152,7 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen }) => {
   const { 
     chats, activeChatId, getActiveChat, getChatMessages, sendMessage, uploadFile,
     editMessage, deleteMessage, deleteMessageForMe, deleteMessageForEveryone, togglePinnedMessage, addReaction, typingUsers, groups, 
-    blockUser, reportUser, socket, blockedUserIds, selectChat
+    blockUser, unblockUser, reportUser, socket, blockedUserIds, selectChat
   } = useChat();
   const { user, allUsers } = useAuth();
   const { showToast } = useNotifications();
@@ -184,6 +184,11 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen }) => {
   const [targetPinMessage, setTargetPinMessage] = useState(null);
   const [selectedDurationHours, setSelectedDurationHours] = useState(168);
 
+  // Multi-pin banner state
+  const [pinnedBannerIndex, setPinnedBannerIndex] = useState(0);
+  const [pinnedDropdownOpen, setPinnedDropdownOpen] = useState(false);
+  const pinnedDropdownRef = useRef(null);
+
   // Delete Modal states
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [targetDeleteMessage, setTargetDeleteMessage] = useState(null);
@@ -191,6 +196,9 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen }) => {
   // Media uploads states
   const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
   const [lightboxImage, setLightboxImage] = useState(null);
+  const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
+  const [uploadingFileName, setUploadingFileName] = useState('');
+  const [uploadingFileType, setUploadingFileType] = useState('image');
 
   // Message Info panel state (group chats only)
   const [msgInfoTarget, setMsgInfoTarget] = useState(null);
@@ -198,6 +206,7 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen }) => {
   // Message dropdown menu states
   const [activeMsgMenuId, setActiveMsgMenuId] = useState(null);
   const [showEmojiPickerMsgId, setShowEmojiPickerMsgId] = useState(null);
+  const [showFullEmojiPickerMsgId, setShowFullEmojiPickerMsgId] = useState(null);
   const [starredMsgIds, setStarredMsgIds] = useState(() => JSON.parse(localStorage.getItem('starredMsgIds') || '[]'));
   const msgMenuRef = useRef(null);
 
@@ -206,10 +215,22 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen }) => {
       if (msgMenuRef.current && !msgMenuRef.current.contains(e.target)) {
         setActiveMsgMenuId(null);
         setShowEmojiPickerMsgId(null);
+        setShowFullEmojiPickerMsgId(null);
       }
     };
     document.addEventListener('mousedown', handleClickOutsideMsgMenu);
     return () => document.removeEventListener('mousedown', handleClickOutsideMsgMenu);
+  }, []);
+
+  // Close pinned dropdown on outside click
+  useEffect(() => {
+    const handleClickOutsidePin = (e) => {
+      if (pinnedDropdownRef.current && !pinnedDropdownRef.current.contains(e.target)) {
+        setPinnedDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutsidePin);
+    return () => document.removeEventListener('mousedown', handleClickOutsidePin);
   }, []);
 
   const handleToggleStarMsg = (msgId) => {
@@ -232,18 +253,42 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen }) => {
 
   if (!activeChat) return null;
 
+  const myRealId = user?.id?.toString() || user?._id?.toString();
   const isDirect = activeChat.type === 'direct';
-  const recipient = isDirect 
-    ? allUsers.find(u => u.id === activeChat.participants.find(p => p !== 'user_me'))
+
+  const getPId = (p) => {
+    if (!p) return null;
+    if (typeof p === 'string') return p;
+    return (p._id || p.id)?.toString() || p.toString();
+  };
+
+  const recipientParticipant = isDirect
+    ? activeChat.participants?.find(p => {
+        const pId = getPId(p);
+        return pId && pId !== 'user_me' && pId !== myRealId;
+      })
     : null;
+
+  const recipientId = getPId(recipientParticipant);
+
+  const recipient = isDirect && recipientId
+    ? allUsers.find(u => {
+        const uId = (u.id || u._id)?.toString();
+        return uId === recipientId;
+      })
+    : null;
+
   const group = !isDirect
     ? groups.find(g => g.id === activeChat.groupId || g.id === activeChat.id)
     : null;
 
-  const isBlocked = isDirect && recipient && blockedUserIds?.includes(recipient.id);
+  const targetUnblockId = recipientId || recipient?.id?.toString() || recipient?._id?.toString();
+
+  const isBlocked = isDirect && targetUnblockId && (
+    (blockedUserIds || []).map(id => id.toString()).includes(targetUnblockId.toString())
+  );
   const isGroupBlocked = !isDirect && (activeChat?.isBlocked || group?.isBlocked);
 
-  const myRealId = user?.id || user?._id?.toString();
   const amIAdmin = !isDirect && group && (group?.adminIds || []).some(
     id => id === 'user_me' || id === myRealId
   );
@@ -584,39 +629,59 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen }) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    showToast("Sharing Image", "Uploading image file to server...", "info");
+    setIsUploadingAttachment(true);
+    setUploadingFileName(file.name);
+    setUploadingFileType('image');
+    showToast("Sharing Image", `Uploading ${file.name}...`, "info");
 
-    const uploaded = await uploadFile(file);
-    if (uploaded) {
-      sendMessage(activeChatId, '', 'image', {
-        attachmentUrl: uploaded.url,
-        attachmentName: uploaded.name
-      });
-      showToast("Image Shared", `${file.name} shared successfully.`, "success");
-    } else {
-      showToast("Sharing Failed", "Failed to upload image to server.", "error");
+    try {
+      const uploaded = await uploadFile(file);
+      if (uploaded) {
+        sendMessage(activeChatId, '', 'image', {
+          attachmentUrl: uploaded.url,
+          attachmentName: uploaded.name
+        });
+        showToast("Image Shared", `${file.name} shared successfully.`, "success");
+      } else {
+        showToast("Sharing Failed", "Failed to upload image to server.", "danger");
+      }
+    } catch (err) {
+      showToast("Sharing Failed", "An error occurred during image upload.", "danger");
+    } finally {
+      setIsUploadingAttachment(false);
+      setUploadingFileName('');
+      e.target.value = '';
     }
-    e.target.value = '';
   };
 
   const handleFileSelection = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    showToast("Sharing File", "Uploading file to server...", "info");
+    setIsUploadingAttachment(true);
+    setUploadingFileName(file.name);
+    setUploadingFileType('file');
+    showToast("Sharing File", `Uploading ${file.name}...`, "info");
 
-    const uploaded = await uploadFile(file);
-    if (uploaded) {
-      sendMessage(activeChatId, '', 'file', {
-        attachmentUrl: uploaded.url,
-        attachmentName: uploaded.name,
-        attachmentSize: formatFileSize(uploaded.size)
-      });
-      showToast("File Shared", `${file.name} shared successfully.`, "success");
-    } else {
-      showToast("Sharing Failed", "Failed to upload file to server.", "error");
+    try {
+      const uploaded = await uploadFile(file);
+      if (uploaded) {
+        sendMessage(activeChatId, '', 'file', {
+          attachmentUrl: uploaded.url,
+          attachmentName: uploaded.name,
+          attachmentSize: formatFileSize(uploaded.size || file.size)
+        });
+        showToast("File Shared", `${file.name} shared successfully.`, "success");
+      } else {
+        showToast("Sharing Failed", "Failed to upload file to server.", "danger");
+      }
+    } catch (err) {
+      showToast("Sharing Failed", "An error occurred during file upload.", "danger");
+    } finally {
+      setIsUploadingAttachment(false);
+      setUploadingFileName('');
+      e.target.value = '';
     }
-    e.target.value = '';
   };
 
   // Filter messages if search is active
@@ -630,7 +695,8 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen }) => {
   };
 
   const handleTogglePinMessage = (message) => {
-    const isCurrentlyPinned = (activeChat?.pinnedMessageId === message.id) || (group?.pinnedMessageId === message.id);
+    const currentPins = activeChat?.pinnedMessageIds || [];
+    const isCurrentlyPinned = currentPins.some(p => p.id === message.id);
     if (isCurrentlyPinned) {
       togglePinnedMessage(activeChatId, message.id);
       showToast("Message Unpinned", "Pinned message removed from this chat.", "info");
@@ -664,12 +730,27 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen }) => {
     return `Expires in ${days}d`;
   };
 
-  // Check if a group chat pinned message banner should be displayed
-  const pinnedMessage = activeChat?.pinnedMessageId
-    ? messages.find(m => m.id === activeChat.pinnedMessageId)
-    : group?.pinnedMessageId
-    ? messages.find(m => m.id === group.pinnedMessageId)
-    : null;
+  // Build the list of resolved pinned messages (ids → actual message objects)
+  const pinnedMessageIds = activeChat?.pinnedMessageIds || [];
+  const pinnedMessages = pinnedMessageIds
+    .map(p => {
+      const msg = messages.find(m => m.id === p.id);
+      return msg ? { ...msg, pinnedUntil: p.pinnedUntil } : null;
+    })
+    .filter(Boolean);
+  // Clamp banner index so it's always in range
+  const safePinnedIndex = pinnedMessages.length > 0 ? pinnedBannerIndex % pinnedMessages.length : 0;
+  const currentPinnedMsg = pinnedMessages[safePinnedIndex] || null;
+
+  // Helper: build a smart content preview for pinned message
+  const getPinnedPreview = (msg) => {
+    if (!msg) return '';
+    if (msg.type === 'image') return '📷 Photo';
+    if (msg.type === 'audio') return '🎤 Voice message';
+    if (msg.type === 'file') return `📄 ${msg.attachmentName || 'Document'}`;
+    if (msg.text) return msg.text;
+    return 'Attachment';
+  };
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-whatsapp-wallpaper">
@@ -716,42 +797,98 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen }) => {
         </div>
       </div>
 
-      {/* Pinned Message Banner */}
-      {pinnedMessage && (
-        <div className="bg-indigo-500/5 border-b border-indigo-500/10 text-indigo-650">
-          <div className="max-w-3xl md:max-w-4xl mx-auto px-4 py-2 flex items-center justify-between text-xs w-full">
-            <div className="flex items-center gap-2 truncate">
-              <Pin className="h-3.5 w-3.5 fill-current rotate-45 shrink-0" />
-              <span className="font-bold shrink-0">Pinned Message:</span>
-              <span className="truncate font-medium">{pinnedMessage.text || "Document Attachment"}</span>
-              {activeChat?.pinnedUntil && (
-                <span className="ml-1 text-[9px] px-2 py-0.5 rounded-full bg-indigo-500/10 font-bold uppercase tracking-wider shrink-0">
-                  {formatRemainingPinTime(activeChat.pinnedUntil)}
+      {/* Multi-Pin Banner */}
+      {pinnedMessages.length > 0 && currentPinnedMsg && (
+        <div className="border-b border-[#e9edef] bg-[#f0f2f5] shrink-0 select-none relative">
+          <div
+            className="flex items-stretch cursor-pointer hover:bg-black/5 transition-colors"
+            onClick={() => {
+              // Cycle to next pinned message and scroll to it
+              const nextIdx = (safePinnedIndex + 1) % pinnedMessages.length;
+              setPinnedBannerIndex(nextIdx);
+              const nextMsg = pinnedMessages[nextIdx];
+              if (nextMsg) {
+                const el = document.getElementById(nextMsg.id);
+                el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                el?.classList.add('bg-yellow-200/60');
+                setTimeout(() => el?.classList.remove('bg-yellow-200/60'), 1500);
+              }
+            }}
+          >
+            {/* Coloured left accent bar (cycles colours for each pin slot) */}
+            <div className={`w-1 shrink-0 rounded-sm my-1 ml-2 ${
+              safePinnedIndex % 3 === 0 ? 'bg-indigo-500' :
+              safePinnedIndex % 3 === 1 ? 'bg-emerald-500' : 'bg-amber-500'
+            }`} />
+
+            {/* Pin icon + counter + content */}
+            <div className="flex-1 min-w-0 px-3 py-2">
+              <div className="flex items-center gap-1.5 mb-0.5">
+                <Pin className="h-3 w-3 text-[#54656f] shrink-0" />
+                <span className="text-[10px] font-bold text-[#54656f] uppercase tracking-wider">
+                  {pinnedMessages.length > 1
+                    ? `Pinned message ${safePinnedIndex + 1} of ${pinnedMessages.length}`
+                    : 'Pinned message'}
                 </span>
-              )}
+              </div>
+              <p className="text-xs text-[#111b21] font-medium truncate leading-snug">
+                {getPinnedPreview(currentPinnedMsg)}
+              </p>
             </div>
-            <div className="ml-4 flex items-center gap-3 shrink-0">
-              <button 
-                onClick={() => {
-                  const el = document.getElementById(pinnedMessage.id);
-                  el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                  el?.classList.add('bg-indigo-500/10');
-                  setTimeout(() => el?.classList.remove('bg-indigo-500/10'), 2000);
-                }} 
-                className="text-[10px] font-bold underline cursor-pointer hover:text-indigo-550"
-              >
-                Jump to
-              </button>
+
+            {/* Chevron dropdown trigger */}
+            <div
+              ref={pinnedDropdownRef}
+              className="relative flex items-center px-3 shrink-0"
+              onClick={e => e.stopPropagation()}
+            >
               <button
-                onClick={() => handleTogglePinMessage(pinnedMessage)}
-                className="text-[10px] font-bold cursor-pointer hover:text-indigo-550"
+                className="p-1.5 rounded-full hover:bg-black/10 transition-colors text-[#54656f]"
+                onClick={() => setPinnedDropdownOpen(prev => !prev)}
+                title="Pinned message options"
               >
-                Unpin
+                <ChevronDown className={`h-4 w-4 transition-transform ${pinnedDropdownOpen ? 'rotate-180' : ''}`} />
               </button>
+
+              {/* Dropdown menu */}
+              {pinnedDropdownOpen && (
+                <div className="absolute top-full right-0 mt-1 z-50 bg-white rounded-xl shadow-lg border border-slate-200/80 py-1 w-44 text-xs font-semibold select-none animate-in fade-in zoom-in-95">
+                  {/* Go to message */}
+                  <button
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 hover:bg-slate-50 transition-colors text-left text-slate-800"
+                    onClick={() => {
+                      setPinnedDropdownOpen(false);
+                      const el = document.getElementById(currentPinnedMsg.id);
+                      el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                      el?.classList.add('bg-yellow-200/60');
+                      setTimeout(() => el?.classList.remove('bg-yellow-200/60'), 1500);
+                    }}
+                  >
+                    <svg className="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="9 18 15 12 9 6" />
+                    </svg>
+                    Go to message
+                  </button>
+                  {/* Unpin */}
+                  <button
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 hover:bg-slate-50 transition-colors text-left text-slate-800"
+                    onClick={() => {
+                      setPinnedDropdownOpen(false);
+                      handleTogglePinMessage(currentPinnedMsg);
+                      // If we just unpinned the last pin, reset banner index
+                      if (pinnedMessages.length <= 1) setPinnedBannerIndex(0);
+                    }}
+                  >
+                    <Pin className="h-4 w-4 shrink-0 text-slate-500" />
+                    Unpin
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
       )}
+
 
       {/* Embedded Search Box in active chat */}
       <AnimatePresence>
@@ -766,14 +903,24 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen }) => {
               <Search className="h-4 w-4 text-slate-400" />
               <input
                 type="text"
+                autoFocus
                 placeholder="Search words within this chat history..."
                 value={searchInChatQuery}
-                onChange={(e) => setSearchInChatQuery(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setSearchInChatQuery(val);
+                  if (val === '') {
+                    setShowSearchInChat(false);
+                  }
+                }}
                 className="flex-1 bg-transparent border-0 outline-none text-xs text-slate-800"
               />
               {searchInChatQuery && (
                 <button 
-                  onClick={() => setSearchInChatQuery('')} 
+                  onClick={() => {
+                    setSearchInChatQuery('');
+                    setShowSearchInChat(false);
+                  }} 
                   className="text-[10px] font-bold text-slate-400 hover:text-slate-600 uppercase"
                 >
                   Clear
@@ -854,12 +1001,17 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen }) => {
                             e.stopPropagation();
                             setActiveMsgMenuId(activeMsgMenuId === msg.id ? null : msg.id);
                             setShowEmojiPickerMsgId(null);
+                            setShowFullEmojiPickerMsgId(null);
                           }}
                           className={`
-                            absolute top-1.5 right-1.5 opacity-0 group-hover/bubble:opacity-100 p-1 rounded-md transition-all z-20 cursor-pointer shadow-xs
+                            absolute top-1.5 right-1.5 p-1 rounded-md transition-all z-20 cursor-pointer shadow-xs
+                            ${activeMsgMenuId === msg.id 
+                              ? 'opacity-100 pointer-events-auto' 
+                              : 'opacity-0 group-hover/bubble:opacity-100 pointer-events-none group-hover/bubble:pointer-events-auto'
+                            }
                             ${isMe 
-                              ? 'text-slate-300 hover:text-white hover:bg-slate-800/80 bg-slate-900/60' 
-                              : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 bg-white/60 dark:bg-slate-900/60'
+                              ? 'text-slate-500 hover:text-slate-900 hover:bg-black/10 bg-emerald-100/50' 
+                              : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100 bg-white/70'
                             }
                           `}
                           title="Message Options"
@@ -868,34 +1020,88 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen }) => {
                         </button>
                       )}
 
+                      {/* Standalone Full Emoji Picker Popover for this specific message */}
+                      {showFullEmojiPickerMsgId === msg.id && (() => {
+                        const isNearBottom = filteredMessages.length >= 4 && index >= filteredMessages.length - 2;
+                        return (
+                          <>
+                            <div 
+                              className="fixed inset-0 z-[95] bg-transparent"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setShowFullEmojiPickerMsgId(null);
+                              }}
+                            />
+                            <div 
+                              className={`
+                                absolute z-[100] ${isMe ? 'right-0' : 'left-0'} 
+                                ${isNearBottom ? 'bottom-full mb-2 top-auto' : 'top-full mt-2 bottom-auto'} 
+                                shadow-2xl rounded-2xl overflow-hidden border border-slate-700/80 bg-slate-900 animate-in fade-in zoom-in-95
+                              `}
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <EmojiPicker
+                                theme="dark"
+                                onEmojiClick={(emojiData) => {
+                                  addReaction(msg.id, emojiData.emoji);
+                                  setShowFullEmojiPickerMsgId(null);
+                                  setShowEmojiPickerMsgId(null);
+                                  setActiveMsgMenuId(null);
+                                }}
+                                searchPlaceholder="Search emoji..."
+                                width={Math.min(300, typeof window !== 'undefined' ? window.innerWidth - 32 : 300)}
+                                height={320}
+                              />
+                            </div>
+                          </>
+                        );
+                      })()}
+
                       {/* WhatsApp Context Dropdown Menu */}
-                      {activeMsgMenuId === msg.id && (
-                        <div 
-                          ref={msgMenuRef}
-                          onClick={(e) => e.stopPropagation()}
-                          className={`
-                            absolute z-50 top-7 bg-slate-900/95 dark:bg-slate-950 backdrop-blur-md text-slate-200 rounded-xl shadow-2xl border border-slate-700/80 py-1.5 w-48 text-xs font-semibold select-none animate-in fade-in zoom-in-95
-                            ${isMe ? 'right-0' : 'left-0'}
-                          `}
-                        >
-                          {/* Quick reaction bar toggle */}
-                          {showEmojiPickerMsgId === msg.id && (
-                            <div className="flex items-center justify-around p-2 border-b border-slate-800">
-                              {quickEmojis.map((emoji) => (
+                      {activeMsgMenuId === msg.id && (() => {
+                        const isNearBottom = filteredMessages.length >= 4 && index >= filteredMessages.length - 2;
+                        return (
+                          <div 
+                            ref={msgMenuRef}
+                            onClick={(e) => e.stopPropagation()}
+                            className={`
+                              absolute z-50 bg-slate-900/95 dark:bg-slate-950 backdrop-blur-md text-slate-200 rounded-xl shadow-2xl border border-slate-700/80 py-1.5 w-48 text-xs font-semibold select-none animate-in fade-in zoom-in-95 max-h-[70vh] overflow-y-auto no-scrollbar
+                              ${isMe ? 'right-0' : 'left-0'}
+                              ${isNearBottom ? 'bottom-full mb-1 top-auto' : 'top-full mt-1 bottom-auto'}
+                            `}
+                          >
+                            {/* Quick reaction bar toggle */}
+                            {showEmojiPickerMsgId === msg.id && (
+                              <div className="flex items-center justify-around p-2 border-b border-slate-800 relative">
+                                {quickEmojis.map((emoji) => (
+                                  <button
+                                    key={emoji}
+                                    type="button"
+                                    onClick={() => {
+                                      addReaction(msg.id, emoji);
+                                      setShowEmojiPickerMsgId(null);
+                                      setShowFullEmojiPickerMsgId(null);
+                                      setActiveMsgMenuId(null);
+                                    }}
+                                    className="hover:scale-125 transition-transform text-sm cursor-pointer"
+                                  >
+                                    {emoji}
+                                  </button>
+                                ))}
                                 <button
-                                  key={emoji}
-                                  onClick={() => {
-                                    addReaction(msg.id, emoji);
-                                    setShowEmojiPickerMsgId(null);
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setShowFullEmojiPickerMsgId(showFullEmojiPickerMsgId === msg.id ? null : msg.id);
                                     setActiveMsgMenuId(null);
                                   }}
-                                  className="hover:scale-125 transition-transform text-sm cursor-pointer"
+                                  className={`p-1 rounded-full text-slate-300 hover:text-white transition-colors cursor-pointer flex items-center justify-center shrink-0 ${showFullEmojiPickerMsgId === msg.id ? 'bg-indigo-600 text-white' : 'bg-slate-800 hover:bg-slate-700'}`}
+                                  title="All Emojis"
                                 >
-                                  {emoji}
+                                  <Plus className="h-3.5 w-3.5" />
                                 </button>
-                              ))}
-                            </div>
-                          )}
+                              </div>
+                            )}
 
                           <button
                             onClick={() => {
@@ -924,6 +1130,7 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen }) => {
                           <button
                             onClick={() => {
                               setShowEmojiPickerMsgId(showEmojiPickerMsgId === msg.id ? null : msg.id);
+                              setShowFullEmojiPickerMsgId(null);
                             }}
                             className="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-slate-800 transition-colors text-left"
                           >
@@ -950,7 +1157,7 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen }) => {
                             className="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-slate-800 transition-colors text-left"
                           >
                             <Pin className="h-4 w-4 text-slate-400" />
-                            {pinnedMessage?.id === msg.id ? "Unpin" : "Pin"}
+                            {(activeChat?.pinnedMessageIds || []).some(p => p.id === msg.id) ? "Unpin" : "Pin"}
                           </button>
 
                           <button
@@ -1028,16 +1235,18 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen }) => {
                             Delete
                           </button>
                         </div>
-                      )}
+                      );
+                    })()}
 
                     {/* Bubble background classes */}
                     <div className={`
-                      px-3.5 py-2 rounded-2xl text-xs sm:text-xs leading-relaxed max-w-full text-left shadow-[0_1px_0.5px_rgba(11,20,26,0.13)]
+                      pl-3.5 pr-8 py-2 rounded-2xl text-xs sm:text-xs leading-relaxed max-w-full text-left shadow-[0_1px_0.5px_rgba(11,20,26,0.13)] relative
                       ${isMe 
                         ? 'bg-[#d9fdd3] text-[#111b21] rounded-tr-xs' 
                         : 'bg-white text-[#111b21] rounded-tl-xs border border-slate-200/50'
                       }
-                      ${msg.isDeleted ? 'italic text-slate-400 bg-slate-50 border-dashed' : ''}
+                      ${msg.isDeleted ? 'italic text-slate-400 bg-slate-50 border-dashed pr-3.5' : ''}
+                      ${msg.emojiReactions && msg.emojiReactions.length > 0 ? 'pb-3.5 mb-1' : ''}
                     `}>
                       {/* Forwarded indicator */}
                       {msg.isForwarded && (
@@ -1062,7 +1271,7 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen }) => {
 
                       {/* Image attachment rendering */}
                       {msg.type === 'image' && msg.attachmentUrl && (
-                        <div className="relative mt-1 max-w-[240px] overflow-hidden rounded-lg cursor-zoom-in border border-slate-200/50 dark:border-slate-800">
+                        <div className="relative mt-1 max-w-[240px] overflow-hidden rounded-lg cursor-zoom-in border-0">
                           <img
                             src={msg.attachmentUrl}
                             alt={msg.attachmentName || "Attachment"}
@@ -1080,7 +1289,7 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen }) => {
                           rel="noopener noreferrer"
                           download={msg.attachmentName}
                           onClick={(e) => handleDownloadFile(e, msg.attachmentUrl, msg.attachmentName)}
-                          className="flex items-center justify-between gap-3 p-3 mt-1.5 rounded-xl border border-slate-205 bg-slate-50 hover:bg-slate-100/80 transition-colors duration-200 cursor-pointer max-w-[260px] group/file text-slate-800 decoration-transparent"
+                          className="flex items-center justify-between gap-3 p-3 mt-1.5 rounded-xl border-0 bg-black/5 hover:bg-black/10 transition-colors duration-200 cursor-pointer max-w-[260px] group/file text-slate-800 decoration-transparent"
                         >
                           <div className="flex items-center gap-3 min-w-0">
                             <div className="h-10 w-10 rounded-lg bg-red-500/10 text-red-500 flex items-center justify-center shrink-0 group-hover/file:bg-red-500/20 transition-colors">
@@ -1108,7 +1317,7 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen }) => {
 
                       {/* Voice Call History Card */}
                       {msg.type === 'call' && (
-                        <div className="flex items-center gap-3 p-3 mt-1.5 rounded-xl border border-slate-205 bg-slate-50 text-slate-800 max-w-[245px]">
+                        <div className="flex items-center gap-3 p-3 mt-1.5 rounded-xl border-0 bg-black/5 text-slate-800 max-w-[245px]">
                           <div className={`h-9 w-9 rounded-lg flex items-center justify-center shrink-0 ${
                             msg.text.includes("Missed") 
                               ? "bg-rose-500/10 text-rose-500" 
@@ -1127,25 +1336,30 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen }) => {
                         </div>
                       )}
 
-                      {/* Reaction Badges array */}
+                      {/* Floating Emoji Reaction with NO background */}
                       {msg.emojiReactions && msg.emojiReactions.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-2.5">
+                        <div 
+                          className="absolute -bottom-2.5 left-1.5 z-10 flex items-center gap-0.5 bg-transparent border-0 shadow-none select-none cursor-pointer hover:scale-115 transition-transform duration-200"
+                        >
                           {msg.emojiReactions.map((r, i) => {
                             const userHasReacted = r.userIds.includes('user_me');
                             return (
                               <button
                                 key={i}
-                                onClick={() => addReaction(msg.id, r.emoji)}
-                                className={`
-                                  inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border transition-colors cursor-pointer
-                                  ${userHasReacted
-                                    ? 'bg-indigo-500/10 border-indigo-500/35 text-indigo-650'
-                                    : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'
-                                  }
-                                `}
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  addReaction(msg.id, r.emoji);
+                                }}
+                                className={`flex items-center justify-center bg-transparent border-0 leading-none transition-transform cursor-pointer ${userHasReacted ? 'scale-110' : 'hover:scale-110'}`}
+                                title={`Reacted with ${r.emoji}`}
                               >
-                                <span>{r.emoji}</span>
-                                <span>{r.count}</span>
+                                <span className="text-xs sm:text-[13px] leading-none shrink-0 drop-shadow-xs">{r.emoji}</span>
+                                {r.count > 1 && (
+                                  <span className="text-[8.5px] font-black text-slate-700 dark:text-slate-200 ml-0.5">
+                                    {r.count}
+                                  </span>
+                                )}
                               </button>
                             );
                           })}
@@ -1243,8 +1457,29 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen }) => {
 
           {/* Recorder bar panel */}
           {isBlocked ? (
-            <div className="bg-slate-100/50 dark:bg-slate-800/50 p-4 rounded-xl flex items-center justify-center text-center text-xs font-bold text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-800/80 select-none shadow-xs leading-relaxed">
-              <span>You have blocked this contact. Unblock them to resume conversation.</span>
+            <div className="p-1 select-none w-full">
+              <div className="flex items-center justify-between gap-3 w-full bg-slate-100/90 dark:bg-slate-800/90 rounded-full px-4 py-2 border border-slate-200/80 dark:border-slate-700/80 shadow-2xs">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="p-1.5 rounded-full bg-rose-500/15 text-rose-600 dark:text-rose-400 shrink-0">
+                    <UserX className="h-4 w-4" />
+                  </div>
+                  <span className="text-xs font-bold text-[#111b21] dark:text-slate-200 truncate">
+                    You blocked this contact. Tap Unblock to resume conversation.
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (targetUnblockId) {
+                      unblockUser(targetUnblockId);
+                      showToast("Contact Unblocked", `${recipient?.name || 'Contact'} is now unblocked.`, "success");
+                    }
+                  }}
+                  className="px-4 py-1.5 rounded-full bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-all cursor-pointer shrink-0 shadow-xs active:scale-95"
+                >
+                  Unblock
+                </button>
+              </div>
             </div>
           ) : isGroupBlocked ? (
             <div className="bg-amber-50 dark:bg-amber-950/40 p-4 rounded-2xl flex items-center justify-center text-center text-xs font-bold text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60 select-none shadow-xs leading-relaxed gap-2">
@@ -1295,6 +1530,44 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen }) => {
                 className="hidden"
                 onChange={handleFileSelection}
               />
+
+              {/* Active File Upload Progress Loader */}
+              <AnimatePresence>
+                {isUploadingAttachment && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 8, scale: 0.98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 8, scale: 0.98 }}
+                    className="mb-2.5 p-3 rounded-2xl bg-white border border-[#008069]/30 shadow-md flex items-center justify-between gap-3 text-xs select-none"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="p-2.5 rounded-xl bg-[#008069]/10 text-[#008069] shrink-0">
+                        {uploadingFileType === 'image' ? (
+                          <ImageIcon className="h-4 w-4" />
+                        ) : (
+                          <FileText className="h-4 w-4" />
+                        )}
+                      </div>
+                      <div className="min-w-0 text-left">
+                        <div className="flex items-center gap-2">
+                          <span className="font-extrabold text-[#111b21] truncate">
+                            Uploading {uploadingFileType === 'image' ? 'Image' : 'PDF / Document'}
+                          </span>
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#008069]/15 text-[#008069] animate-pulse shrink-0">
+                            Uploading...
+                          </span>
+                        </div>
+                        <p className="text-[11px] font-medium text-[#667781] truncate mt-0.5">
+                          {uploadingFileName || 'Processing attachment...'}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0 pr-1">
+                      <Loader2 className="h-5 w-5 animate-spin text-[#008069]" />
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
               {/* Single Unified Pill Capsule */}
               <div className="flex items-center gap-1.5 w-full bg-white rounded-full px-3 py-1.5 border border-slate-200/80 shadow-2xs">
@@ -1356,7 +1629,7 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen }) => {
                         initial={{ opacity: 0, scale: 0.95, y: -10 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95, y: -10 }}
-                        className="absolute bottom-12 left-0 z-30"
+                        className="absolute bottom-12 left-0 z-30 max-w-[calc(100vw-2rem)]"
                       >
                         <EmojiPicker
                           onEmojiClick={(emojiData) => {
@@ -1365,8 +1638,8 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen }) => {
                           }}
                           skinTonesDisabled={false}
                           searchPlaceholder="Search emoji..."
-                          height={400}
-                          width={320}
+                          height={320}
+                          width={Math.min(300, typeof window !== 'undefined' ? window.innerWidth - 32 : 300)}
                           previewConfig={{ showPreview: false }}
                           theme="light"
                         />
@@ -1428,7 +1701,7 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen }) => {
             <img
               src={lightboxImage}
               alt="Lightbox View"
-              className="max-h-[60vh] max-w-full rounded-lg object-contain border border-slate-100 shadow-lg"
+              className="max-h-[60vh] max-w-full rounded-lg object-contain border-0 shadow-lg"
             />
           )}
           <div className="mt-4 flex gap-3 w-full justify-end">

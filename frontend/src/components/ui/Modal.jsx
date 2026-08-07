@@ -49,27 +49,27 @@ export const Modal = ({
             exit={{ scale: 0.95, opacity: 0, y: 20 }}
             transition={{ type: 'spring', duration: 0.4 }}
             className={`
-              relative w-full rounded-2xl shadow-2xl overflow-hidden border border-slate-100 dark:border-slate-800
-              bg-white dark:bg-slate-900 text-slate-850 dark:text-slate-100
+              relative w-full rounded-2xl shadow-2xl overflow-hidden border border-slate-200/80
+              bg-white text-[#111b21]
               ${sizes[size]}
               z-10
             `}
           >
             {/* Header */}
-            <div className="px-6 py-4 flex items-center justify-between border-b border-slate-100 dark:border-slate-800/80">
-              <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+            <div className="px-6 py-4 flex items-center justify-between border-b border-[#e9edef] bg-[#f0f2f5]">
+              <h3 className="text-base font-bold text-[#111b21]">
                 {title}
               </h3>
               <button
                 onClick={onClose}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                className="p-1.5 rounded-lg text-[#54656f] hover:text-[#111b21] hover:bg-slate-200/60 transition-colors cursor-pointer"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
             {/* Content Body */}
-            <div className="px-6 py-5 max-h-[75vh] overflow-y-auto">
+            <div className="px-6 py-5 max-h-[75vh] overflow-y-auto bg-[#f8fafc]">
               {children}
             </div>
           </motion.div>

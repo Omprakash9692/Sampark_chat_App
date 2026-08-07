@@ -98,9 +98,9 @@ export const EmailVerification = () => {
 
     setLoading(true);
     try {
-      await verifyEmail(fullCode);
+      const verifiedUser = await verifyEmail(fullCode);
       showToast("Email Verified", "Your account has been fully validated.", "success");
-      navigate('/chat');
+      navigate(verifiedUser?.role === 'Admin' ? '/admin' : '/chat');
     } catch (err) {
       showToast("Verification Failed", err.message || "Invalid verification code.", "danger");
       // Clear code boxes on failure so user can retype
