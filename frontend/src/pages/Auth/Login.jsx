@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, useNavigate } from 'react-router-dom';
-import { Mail, Lock, LogIn, MessageSquare, AlertCircle } from 'lucide-react';
+import { Mail, Lock, LogIn, AlertCircle } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useNotifications } from '../../context/NotificationContext';
-import { Input } from '../../components/ui/Input';
-import { Button } from '../../components/ui/Button';
+import { BrandLogo } from '../../components/ui/BrandLogo';
 
 export const Login = () => {
   const { login, allUsers } = useAuth();
@@ -49,63 +48,58 @@ export const Login = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#fbfbfa] flex flex-col items-center justify-center px-6 py-10 relative overflow-hidden">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(148,163,184,0.08),transparent_34%),linear-gradient(180deg,#fcfcfb_0%,#f6f5f2_100%)] -z-10" />
+    <div className="min-h-screen bg-[#efeae2] text-[#111b21] flex flex-col items-center justify-center p-4 sm:p-6 relative overflow-hidden font-sans select-none">
+      
+      {/* WhatsApp Chat UI Wallpaper Pattern Overlay */}
+      <div className="absolute inset-0 bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:16px_16px] opacity-60 pointer-events-none -z-10" />
 
-      <div className="w-full max-w-[460px]">
-        <div className="mb-8 flex justify-center">
-          <div className="flex items-center gap-3 text-slate-500">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white shadow-sm">
-              <MessageSquare className="h-5 w-5" />
-            </div>
-            <div>
-              <div className="text-[2rem] font-extrabold leading-none tracking-tight text-slate-500">SAMPARK</div>
-              <p className="mt-1 text-xs font-medium tracking-[0.08em] text-slate-500">
-                Secure Premium Messaging
-              </p>
-            </div>
-          </div>
+      {/* Main Clean Card */}
+      <div className="w-full max-w-md bg-white rounded-3xl p-7 sm:p-9 border border-[#e9edef] shadow-[0_12px_40px_rgba(11,20,26,0.08)] relative z-10">
+        
+        {/* Brand Header */}
+        <div className="flex flex-col items-center text-center mb-6">
+          <BrandLogo size="lg" showSubtitle={false} className="mb-2" />
+          <p className="text-xs text-[#667781] font-medium leading-relaxed">
+            Welcome back! Sign in to continue chatting.
+          </p>
         </div>
 
-        <div className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-[0_18px_60px_rgba(15,23,42,0.06)]">
-          <div className="px-8 pt-8 pb-7">
-            <div className="mb-7 text-center">
-              <h2 className="text-[2rem] font-extrabold tracking-tight text-slate-800">Welcome back</h2>
-              <p className="mt-2 text-sm text-slate-500">
-                Enter your credentials to access your account
-              </p>
-            </div>
+        {/* Tab Switcher */}
+        <div className="mb-6 grid grid-cols-2 rounded-2xl bg-[#f0f2f5] p-1 border border-[#e9edef]">
+          <Link
+            to="/login"
+            className="rounded-xl bg-[#00a884] py-2 text-center text-xs font-black text-white shadow-sm transition-all"
+          >
+            Sign In
+          </Link>
+          <Link
+            to="/register"
+            className="rounded-xl py-2 text-center text-xs font-bold text-[#667781] hover:text-[#111b21] transition-colors"
+          >
+            Register
+          </Link>
+        </div>
 
-            <div className="mb-7 grid grid-cols-2 rounded-xl bg-slate-100 p-1.5">
-              <Link
-                to="/login"
-                className="rounded-lg bg-white px-4 py-2.5 text-center text-sm font-semibold text-slate-800 shadow-sm"
-              >
-                Sign In
-              </Link>
-              <Link
-                to="/register"
-                className="rounded-lg px-4 py-2.5 text-center text-sm font-medium text-slate-500 transition-colors hover:text-slate-800"
-              >
-                Register
-              </Link>
-            </div>
+        {errorMsg && (
+          <div className="mb-5 flex items-start gap-2.5 rounded-2xl border border-rose-200 bg-rose-50 p-3.5 text-xs text-rose-600">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-rose-500" />
+            <p className="font-medium leading-normal">{errorMsg}</p>
+          </div>
+        )}
 
-            {errorMsg && (
-              <div className="mb-5 flex items-start gap-2.5 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs text-rose-600">
-                <AlertCircle className="mt-0.5 h-4.5 w-4.5 flex-shrink-0" />
-                <p className="font-medium leading-normal">{errorMsg}</p>
-              </div>
-            )}
-
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-              <Input
-                id="email"
-                label="Email Address"
-                placeholder="name@example.com"
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 text-left">
+          
+          {/* Email Address */}
+          <div className="space-y-1.5">
+            <label className="block text-[10px] font-black uppercase tracking-wider text-[#667781] ml-0.5">
+              Email Address
+            </label>
+            <div className="relative">
+              <Mail className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#667781] h-4 w-4 my-auto" />
+              <input
                 type="email"
-                icon={Mail}
-                error={errors.email}
+                placeholder="name@example.com"
+                className={`block w-full rounded-2xl bg-[#f0f2f5] border ${errors.email ? 'border-rose-500' : 'border-[#e9edef] focus:bg-white focus:border-[#00a884] focus:ring-1 focus:ring-[#00a884]'} text-xs text-[#111b21] py-3.5 pl-10 pr-4 outline-none transition-all placeholder:text-[#8696a0] font-medium`}
                 {...register('email', {
                   required: 'Email is required',
                   pattern: {
@@ -114,14 +108,28 @@ export const Login = () => {
                   }
                 })}
               />
+            </div>
+            {errors.email && (
+              <p className="text-[11px] font-bold text-rose-500 pl-1 mt-1">{errors.email.message}</p>
+            )}
+          </div>
 
-              <Input
-                id="password"
-                label="Password"
-                placeholder="Enter your password"
+          {/* Password */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="block text-[10px] font-black uppercase tracking-wider text-[#667781] ml-0.5">
+                Password
+              </label>
+              <Link to="/forgot-password" className="text-[11px] font-bold text-[#00a884] hover:text-[#008069] transition-colors">
+                Forgot Password?
+              </Link>
+            </div>
+            <div className="relative">
+              <Lock className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#667781] h-4 w-4 my-auto" />
+              <input
                 type="password"
-                icon={Lock}
-                error={errors.password}
+                placeholder="••••••••"
+                className={`block w-full rounded-2xl bg-[#f0f2f5] border ${errors.password ? 'border-rose-500' : 'border-[#e9edef] focus:bg-white focus:border-[#00a884] focus:ring-1 focus:ring-[#00a884]'} text-xs text-[#111b21] py-3.5 pl-10 pr-4 outline-none transition-all placeholder:text-[#8696a0] font-medium`}
                 {...register('password', {
                   required: 'Password is required',
                   minLength: {
@@ -130,61 +138,60 @@ export const Login = () => {
                   }
                 })}
               />
-
-              <div className="flex items-center justify-end pt-1">
-                <Link to="/forgot-password" className="text-xs font-medium text-slate-500 hover:text-slate-800 transition-colors">
-                  Forgot Password?
-                </Link>
-              </div>
-
-              <Button
-                type="submit"
-                fullWidth
-                loading={loading}
-                icon={LogIn}
-                className="mt-1 py-3.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-800 shadow-none"
-              >
-                Sign In
-              </Button>
-            </form>
-
+            </div>
+            {errors.password && (
+              <p className="text-[11px] font-bold text-rose-500 pl-1 mt-1">{errors.password.message}</p>
+            )}
           </div>
 
-          <div className="border-t border-slate-200 bg-slate-50/70 px-8 py-5 text-center text-sm text-slate-500">
-            Don't have an account?{' '}
-            <Link to="/register" className="font-semibold text-slate-800 hover:text-slate-600 transition-colors">
-              Sign up
-            </Link>
-          </div>
+          {/* Sign In Button */}
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full py-3.5 px-4 mt-2 rounded-2xl bg-[#00a884] hover:bg-[#008069] disabled:opacity-60 disabled:cursor-not-allowed text-white font-extrabold text-xs shadow-md shadow-[#00a884]/20 hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer"
+          >
+            {loading ? (
+              <span className="flex items-center gap-2">
+                <span className="h-4 w-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                Signing In...
+              </span>
+            ) : (
+              <span className="flex items-center gap-2">
+                <LogIn className="h-4 w-4" /> Sign In
+              </span>
+            )}
+          </button>
+        </form>
+
+        {/* Footer Link */}
+        <div className="mt-6 border-t border-[#f0f2f5] pt-4 text-center text-xs text-[#667781] font-medium">
+          Don't have an account?{' '}
+          <Link to="/register" className="font-bold text-[#00a884] hover:text-[#008069] transition-colors">
+            Register now
+          </Link>
         </div>
 
-        <div className="mt-6 flex flex-wrap items-center justify-center gap-3 text-[11px] text-slate-400">
-          <span className="flex items-center gap-1.5">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-            End-to-End Encrypted
-          </span>
-          <span className="hidden sm:inline">•</span>
-          <span>GDPR Compliant</span>
-          <span className="hidden sm:inline">•</span>
-          <span>ISO 27001 Certified</span>
-        </div>
-
-        <div className="mt-6 border-t border-slate-200/70 pt-5 text-left">
-          <h4 className="mb-3 text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">
-            Quick Reviewer Profiles
-          </h4>
-          <div className="flex flex-wrap gap-2">
-            {allUsers.slice(0, 3).map((u) => (
-              <button
-                key={u.id}
-                onClick={() => handleQuickFill(u.email)}
-                className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-medium text-slate-600 hover:bg-slate-50 transition-all duration-150"
-              >
-                {u.name.split(' ')[0]} ({u.role})
-              </button>
-            ))}
+        {/* Quick Reviewer Accounts */}
+        {allUsers && allUsers.length > 0 && (
+          <div className="mt-6 border-t border-[#f0f2f5] pt-4 text-left">
+            <h4 className="mb-2 text-[10px] font-black uppercase tracking-[0.2em] text-[#8696a0]">
+              Quick Autofill Accounts
+            </h4>
+            <div className="flex flex-wrap gap-2">
+              {allUsers.slice(0, 3).map((u) => (
+                <button
+                  key={u.id}
+                  type="button"
+                  onClick={() => handleQuickFill(u.email)}
+                  className="rounded-xl border border-[#e9edef] bg-[#f0f2f5] px-3 py-1.5 text-[11px] font-bold text-[#111b21] hover:border-[#00a884] hover:bg-white transition-all cursor-pointer shadow-xs"
+                >
+                  {u.name.split(' ')[0]} ({u.role})
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
+
       </div>
     </div>
   );

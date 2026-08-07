@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 
-import { 
+import {
   User, Mail, Camera, Lock, LogOut, Save, Loader2, Phone
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -43,7 +43,7 @@ export const Settings = () => {
   const handleProfileSave = async (e) => {
     e.preventDefault();
     setIsSaving(true);
-    
+
     const formData = new FormData();
     formData.append("name", name);
     formData.append("bio", bio);
@@ -93,20 +93,20 @@ export const Settings = () => {
 
   return (
     <div className="flex-grow flex h-full overflow-hidden select-none bg-slate-50/50 relative">
-      
+
       {/* Grid background overlay for design consistency */}
       <div className="absolute inset-0 bg-grid-pattern mask-radial-fade pointer-events-none -z-10 opacity-60" />
-      
+
       <main className="flex-grow overflow-y-auto p-6 md:p-12 no-scrollbar">
         <div className="max-w-xl md:max-w-2xl mx-auto space-y-8 select-none text-left">
-          
+
           {/* Top Profile Header */}
           <div className="flex flex-col items-center justify-center text-center pb-4">
             <div className="relative group">
-              <Avatar 
-                src={avatarUrl} 
-                name={name} 
-                size="xl" 
+              <Avatar
+                src={avatarUrl}
+                name={name}
+                size="xl"
                 color={user?.avatarColor}
                 className="h-24 w-24 border-4 border-white shadow-md rounded-full object-cover"
               />
@@ -128,13 +128,13 @@ export const Settings = () => {
                 </button>
               )}
             </div>
-            
+
             <h2 className="text-xl font-black text-slate-900 mt-4">{name}</h2>
           </div>
 
           {/* Form wrapper */}
           <form onSubmit={handleProfileSave} className="space-y-6">
-            
+
             {/* Section 1: Personal Information */}
             <div className="bg-white border border-slate-200/80 rounded-3xl p-6 shadow-[0_12px_30px_rgba(15,23,42,0.02)] space-y-5">
               <div>
@@ -270,7 +270,7 @@ export const Settings = () => {
 
             {/* Section 4: Danger Zone */}
             <div className="flex flex-col sm:flex-row items-center justify-center gap-6 pt-2 select-none">
-              
+
               {/* Sign out button */}
               <button
                 type="button"

@@ -25,7 +25,7 @@ export const ToastItem = ({ id, title, description, type, onClose }) => {
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, scale: 0.85, transition: { duration: 0.2 } }}
       className={`
-        flex items-start gap-3.5 p-4 rounded-2xl border shadow-xl w-84 max-w-full
+        flex items-start gap-3.5 p-3.5 sm:p-4 rounded-2xl border shadow-xl w-full sm:w-84 max-w-full
         text-[#111b21] backdrop-blur-md select-none
         ${borders[type] || borders.info}
       `}
@@ -56,8 +56,8 @@ export const ToastContainer = () => {
   const { toasts, clearToast } = useNotifications();
 
   return (
-    <div className="fixed bottom-5 right-5 z-[100] flex flex-col gap-3 pointer-events-none max-w-full">
-      <div className="pointer-events-auto flex flex-col gap-3">
+    <div className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-5 sm:bottom-5 z-[100] flex flex-col gap-3 pointer-events-none max-w-full">
+      <div className="pointer-events-auto flex flex-col gap-3 items-center sm:items-end w-full">
         <AnimatePresence>
           {toasts.map((toast) => (
             <ToastItem

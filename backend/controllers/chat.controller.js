@@ -1450,20 +1450,25 @@ export const toggleUnreadChat = asyncHandler(async (req, res) => {
   );
 });
 
-// Clear Chat Messages
+// Clear Chat Messages (For Me Only)
 export const clearChatMessages = asyncHandler(async (req, res) => {
   const { chatId } = req.params;
+  const myId = req.user._id;
 
-  const conversation = await Conversation.findById(chatId);
+  const conversation = await Conversation.findOne({
+    _id: chatId,
+    participants: myId
+  });
   if (!conversation) throw new ApiError(404, "Chat space not found");
 
-  await Message.deleteMany({ conversation: chatId });
-
-  conversation.lastMessage = null;
-  await conversation.save();
+  // Mark all messages in this conversation as deleted for current user only
+  await Message.updateMany(
+    { conversation: chatId, deletedFor: { $ne: myId } },
+    { $push: { deletedFor: myId } }
+  );
 
   return res.status(200).json(
-    new ApiResponse(200, "Chat messages cleared successfully", { chatId })
+    new ApiResponse(200, "Chat messages cleared for you successfully", { chatId })
   );
 });
 

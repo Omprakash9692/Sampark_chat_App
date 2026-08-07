@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, useNavigate } from 'react-router-dom';
-import { Lock, ArrowLeft, ShieldCheck, MessageSquare, KeyRound } from 'lucide-react';
+import { Lock, ArrowLeft, ShieldCheck, KeyRound } from 'lucide-react';
 import { useNotifications } from '../../context/NotificationContext';
 import { useAuth } from '../../context/AuthContext';
-import { Input } from '../../components/ui/Input';
-import { Button } from '../../components/ui/Button';
+import { BrandLogo } from '../../components/ui/BrandLogo';
 
 export const ResetPassword = () => {
   const { showToast } = useNotifications();
@@ -53,83 +52,127 @@ export const ResetPassword = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col items-center justify-center p-6 relative overflow-hidden transition-colors duration-300">
-      {/* Decorative backdrop blobs */}
-      <div className="absolute top-1/4 left-1/4 w-80 h-80 bg-indigo-500/10 dark:bg-indigo-500/5 rounded-full blur-[100px] pointer-events-none -z-10" />
-      <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-violet-500/10 dark:bg-violet-500/5 rounded-full blur-[100px] pointer-events-none -z-10" />
+    <div className="min-h-screen bg-[#efeae2] text-[#111b21] flex flex-col items-center justify-center p-4 sm:p-6 relative overflow-hidden font-sans select-none">
+      
+      {/* WhatsApp Chat UI Wallpaper Pattern Overlay */}
+      <div className="absolute inset-0 bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:16px_16px] opacity-60 pointer-events-none -z-10" />
 
-      {/* Main card */}
-      <div className="w-full max-w-md glass-premium rounded-2xl p-8 border border-slate-200 dark:border-slate-850 shadow-2xl relative bg-white/70 dark:bg-slate-900/70">
+      {/* Main Card */}
+      <div className="w-full max-w-md bg-white rounded-3xl p-7 sm:p-9 border border-[#e9edef] shadow-[0_12px_40px_rgba(11,20,26,0.08)] relative z-10">
+        
+        {/* Brand Header */}
         <div className="flex flex-col items-center text-center mb-6">
-          <div className="h-12 w-12 rounded-xl bg-gradient-to-tr from-indigo-500 to-violet-600 flex items-center justify-center text-white shadow-lg shadow-indigo-500/10 mb-4">
-            <MessageSquare className="h-6 w-6" />
+          <div className="h-13 w-13 rounded-2xl bg-gradient-to-tr from-[#00a884] to-[#008069] flex items-center justify-center text-white shadow-lg shadow-[#00a884]/20 mb-4 transition-transform hover:scale-105">
+            <ShieldCheck className="h-6 w-6" />
           </div>
-          <h2 className="text-2xl font-black text-slate-900 dark:text-white font-sans tracking-tight">
+
+          <BrandLogo size="lg" showSubtitle={false} className="mb-2" />
+
+          <h2 className="text-xl sm:text-2xl font-black text-[#111b21] tracking-tight mt-1">
             Reset Password
           </h2>
-          <p className="text-sm text-slate-550 dark:text-slate-400 mt-1">
-            Choose a new, secure password.
+          <p className="text-xs sm:text-sm text-[#667781] font-medium mt-1.5 leading-relaxed max-w-xs">
+            Enter the 6-digit verification code sent to <span className="text-[#00a884] font-bold">{email}</span> and choose a new password.
           </p>
         </div>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-          <Input
-            id="code"
-            label="Verification Code"
-            placeholder="6-digit code"
-            type="text"
-            icon={KeyRound}
-            error={errors.code}
-            {...register('code', {
-              required: 'Verification code is required',
-              pattern: { value: /^[0-9]{6}$/, message: 'Must be a 6-digit code' }
-            })}
-          />
+        {/* Form */}
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 text-left">
+          
+          {/* Verification Code */}
+          <div className="space-y-1">
+            <label className="block text-[10px] font-black uppercase tracking-wider text-[#667781] ml-0.5">
+              Verification Code
+            </label>
+            <div className="relative">
+              <KeyRound className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#667781] h-4 w-4 my-auto" />
+              <input
+                type="text"
+                placeholder="6-digit code"
+                maxLength={6}
+                className={`block w-full rounded-2xl bg-[#f0f2f5] border ${errors.code ? 'border-rose-500' : 'border-[#e9edef] focus:bg-white focus:border-[#00a884] focus:ring-1 focus:ring-[#00a884]'} text-xs text-[#111b21] py-3.5 pl-10 pr-4 outline-none transition-all placeholder:text-[#8696a0] font-bold tracking-widest text-center`}
+                {...register('code', {
+                  required: 'Verification code is required',
+                  pattern: { value: /^[0-9]{6}$/, message: 'Must be a 6-digit code' }
+                })}
+              />
+            </div>
+            {errors.code && (
+              <p className="text-[11px] font-bold text-rose-500 pl-1 mt-1">{errors.code.message}</p>
+            )}
+          </div>
 
-          <Input
-            id="password"
-            label="New Password"
-            placeholder="••••••••"
-            type="password"
-            icon={Lock}
-            error={errors.password}
-            {...register('password', {
-              required: 'Password is required',
-              minLength: { value: 6, message: 'Password must be at least 6 characters' }
-            })}
-          />
+          {/* New Password */}
+          <div className="space-y-1">
+            <label className="block text-[10px] font-black uppercase tracking-wider text-[#667781] ml-0.5">
+              New Password
+            </label>
+            <div className="relative">
+              <Lock className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#667781] h-4 w-4 my-auto" />
+              <input
+                type="password"
+                placeholder="••••••••"
+                className={`block w-full rounded-2xl bg-[#f0f2f5] border ${errors.password ? 'border-rose-500' : 'border-[#e9edef] focus:bg-white focus:border-[#00a884] focus:ring-1 focus:ring-[#00a884]'} text-xs text-[#111b21] py-3.5 pl-10 pr-4 outline-none transition-all placeholder:text-[#8696a0] font-medium`}
+                {...register('password', {
+                  required: 'Password is required',
+                  minLength: { value: 6, message: 'Password must be at least 6 characters' }
+                })}
+              />
+            </div>
+            {errors.password && (
+              <p className="text-[11px] font-bold text-rose-500 pl-1 mt-1">{errors.password.message}</p>
+            )}
+          </div>
 
-          <Input
-            id="confirmPassword"
-            label="Confirm New Password"
-            placeholder="••••••••"
-            type="password"
-            icon={Lock}
-            error={errors.confirmPassword}
-            {...register('confirmPassword', {
-              required: 'Confirm password is required',
-              validate: value => value === password || 'Passwords do not match'
-            })}
-          />
+          {/* Confirm New Password */}
+          <div className="space-y-1">
+            <label className="block text-[10px] font-black uppercase tracking-wider text-[#667781] ml-0.5">
+              Confirm New Password
+            </label>
+            <div className="relative">
+              <Lock className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#667781] h-4 w-4 my-auto" />
+              <input
+                type="password"
+                placeholder="••••••••"
+                className={`block w-full rounded-2xl bg-[#f0f2f5] border ${errors.confirmPassword ? 'border-rose-500' : 'border-[#e9edef] focus:bg-white focus:border-[#00a884] focus:ring-1 focus:ring-[#00a884]'} text-xs text-[#111b21] py-3.5 pl-10 pr-4 outline-none transition-all placeholder:text-[#8696a0] font-medium`}
+                {...register('confirmPassword', {
+                  required: 'Confirm password is required',
+                  validate: value => value === password || 'Passwords do not match'
+                })}
+              />
+            </div>
+            {errors.confirmPassword && (
+              <p className="text-[11px] font-bold text-rose-500 pl-1 mt-1">{errors.confirmPassword.message}</p>
+            )}
+          </div>
 
-          <Button
+          <button
             type="submit"
-            fullWidth
-            loading={loading}
-            icon={ShieldCheck}
-            className="py-3 shadow-md shadow-indigo-600/10"
+            disabled={loading}
+            className="w-full py-3.5 px-4 mt-2 rounded-2xl bg-[#00a884] hover:bg-[#008069] disabled:opacity-60 disabled:cursor-not-allowed text-white font-extrabold text-xs shadow-md shadow-[#00a884]/20 hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer"
           >
-            Update Password
-          </Button>
+            {loading ? (
+              <span className="flex items-center gap-2">
+                <span className="h-4 w-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                Updating Password...
+              </span>
+            ) : (
+              <span className="flex items-center gap-2">
+                <ShieldCheck className="h-4 w-4" /> Update Password
+              </span>
+            )}
+          </button>
         </form>
 
-        <div className="mt-8 border-t border-slate-100 dark:border-slate-850 pt-5 text-center">
-          <Link to="/login" className="inline-flex items-center gap-2 text-xs font-bold text-slate-500 hover:text-slate-850 dark:text-slate-400 dark:hover:text-slate-200 transition-colors">
-            <ArrowLeft className="h-4 w-4" /> Back to Login
+        {/* Footer Link */}
+        <div className="mt-7 border-t border-[#f0f2f5] pt-5 text-center">
+          <Link to="/login" className="inline-flex items-center gap-2 text-xs font-bold text-[#667781] hover:text-[#111b21] transition-colors py-1 px-3 rounded-xl hover:bg-[#f0f2f5]">
+            <ArrowLeft className="h-4 w-4 text-[#00a884]" /> Return to Login
           </Link>
         </div>
       </div>
     </div>
   );
 };
+
 export default ResetPassword;

@@ -32,7 +32,7 @@ export const Modal = ({
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
           {/* Overlay */}
           <motion.div
             initial={{ opacity: 0 }}
@@ -50,14 +50,14 @@ export const Modal = ({
             transition={{ type: 'spring', duration: 0.4 }}
             className={`
               relative w-full rounded-2xl shadow-2xl overflow-hidden border border-slate-200/80
-              bg-white text-[#111b21]
+              bg-white text-[#111b21] max-h-[90vh] flex flex-col
               ${sizes[size]}
               z-10
             `}
           >
             {/* Header */}
-            <div className="px-6 py-4 flex items-center justify-between border-b border-[#e9edef] bg-[#f0f2f5]">
-              <h3 className="text-base font-bold text-[#111b21]">
+            <div className="px-4 py-3 sm:px-6 sm:py-4 flex items-center justify-between border-b border-[#e9edef] bg-[#f0f2f5] shrink-0">
+              <h3 className="text-sm sm:text-base font-bold text-[#111b21]">
                 {title}
               </h3>
               <button
@@ -69,7 +69,7 @@ export const Modal = ({
             </div>
 
             {/* Content Body */}
-            <div className="px-6 py-5 max-h-[75vh] overflow-y-auto bg-[#f8fafc]">
+            <div className="px-4 py-4 sm:px-6 sm:py-5 max-h-[75vh] overflow-y-auto bg-[#f8fafc] flex-1 no-scrollbar">
               {children}
             </div>
           </motion.div>

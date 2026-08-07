@@ -6,7 +6,7 @@ import {
   Phone, Search, Info, MoreVertical, Send, Smile, Paperclip, 
   Mic, Image as ImageIcon, FileText, Check, CheckCheck, Trash2, Edit2, 
   CornerUpLeft, Reply, Forward, Pin, Play, Pause, X, Trash, Sparkles, Download, Video, Lock,
-  ChevronDown, Copy, Star, Plus, UserX, Loader2
+  ChevronDown, Copy, Star, Plus, UserX, Loader2, ArrowLeft
 } from 'lucide-react';
 import { useChat } from '../../context/ChatContext';
 import { useAuth } from '../../context/AuthContext';
@@ -148,7 +148,7 @@ const renderTextWithLinks = (text)=> {
   );
 };
 
-export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen }) => {
+export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen, onBack }) => {
   const { 
     chats, activeChatId, getActiveChat, getChatMessages, sendMessage, uploadFile,
     editMessage, deleteMessage, deleteMessageForMe, deleteMessageForEveryone, togglePinnedMessage, addReaction, typingUsers, groups, 
@@ -756,8 +756,23 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen }) => {
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-whatsapp-wallpaper">
       
       {/* 1. Top Header */}
-      <div className="h-16 px-4 border-b border-[#e9edef] bg-[#f0f2f5] flex items-center justify-between z-10 shrink-0 select-none">
-        <div className="flex items-center gap-3 min-w-0">
+      <div className="h-16 px-3 sm:px-4 border-b border-[#e9edef] bg-[#f0f2f5] flex items-center justify-between z-10 shrink-0 select-none">
+        <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
+          <button 
+            type="button"
+            onClick={() => {
+              if (onBack) {
+                onBack();
+              } else {
+                selectChat(null);
+              }
+            }}
+            className="sm:hidden p-1.5 rounded-full text-slate-600 hover:text-slate-900 hover:bg-slate-200/80 transition-colors cursor-pointer flex items-center justify-center shrink-0"
+            title="Back to chats"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+
           <Avatar 
             src={isDirect ? recipient?.avatar : group?.avatar} 
             name={chatTitle} 
@@ -789,8 +804,15 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen }) => {
             <Info className="h-4.5 w-4.5" />
           </button>
           <button 
-            onClick={() => selectChat(null)} 
-            className="p-2 rounded-xl cursor-pointer text-slate-450 hover:text-rose-600 hover:bg-rose-50 transition-colors border border-slate-200/60 ml-1"
+            onClick={() => {
+              if (onBack) {
+                onBack();
+              } else {
+                selectChat(null);
+              }
+            }} 
+            className="hidden sm:flex p-2 rounded-xl cursor-pointer text-slate-450 hover:text-rose-600 hover:bg-rose-50 transition-colors border border-slate-200/60 ml-1"
+            title="Close chat"
           >
             <X className="h-4.5 w-4.5" />
           </button>
@@ -939,7 +961,7 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen }) => {
 
       {/* 2. Messages Window timeline scroll */}
       <div ref={scrollContainerRef} className="flex-1 overflow-y-auto no-scrollbar bg-whatsapp-wallpaper">
-        <div className="max-w-3xl md:max-w-4xl mx-auto p-4 space-y-4 w-full">
+        <div className="max-w-3xl md:max-w-4xl mx-auto px-2.5 py-3 sm:p-4 space-y-3.5 w-full">
           {filteredMessages.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-slate-450 dark:text-slate-500 text-xs py-20">
               {searchInChatQuery ? "No search results match." : "No messages. Send a message to start conversation."}
@@ -962,7 +984,7 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen }) => {
               return (
                 <React.Fragment key={msg.id}>
                   {showDateSeparator && (
-                    <div className="flex justify-center my-4 select-none w-full">
+                    <div className="flex justify-center my-3 select-none w-full">
                       <span className="px-3 py-1 rounded-lg bg-white text-[#667781] text-[11px] font-semibold tracking-wide shadow-xs border border-slate-200/40 uppercase">
                         {formatDateSeparator(msg.timestamp)}
                       </span>
@@ -970,44 +992,47 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen }) => {
                   )}
                   <div 
                     id={msg.id}
-                    className={`flex gap-3 max-w-[85%] sm:max-w-[70%] transition-colors duration-500 rounded-xl p-1 ${isMe ? 'ml-auto flex-row-reverse text-right' : 'mr-auto text-left'}`}
+                    className={`flex gap-2 sm:gap-3 max-w-[90%] sm:max-w-[70%] transition-colors duration-500 rounded-xl p-0.5 ${isMe ? 'ml-auto flex-row-reverse text-right' : 'mr-auto text-left'}`}
                   >
                   {/* Avatar */}
                   {!isMe && (
-                    <Avatar 
-                      src={sender.avatar} 
-                      name={sender.name} 
-                      size="sm" 
-                      color={sender.avatarColor}
-                    />
+                    <div className="shrink-0">
+                      <Avatar 
+                        src={sender.avatar} 
+                        name={sender.name} 
+                        size="sm" 
+                        color={sender.avatarColor}
+                      />
+                    </div>
                   )}
 
-                  <div className={`space-y-1.5 flex flex-col w-full ${isMe ? 'items-end' : 'items-start'}`}>
+                  <div className={`space-y-1 flex flex-col w-full ${isMe ? 'items-end' : 'items-start'}`}>
                     {/* Sender Name tag */}
                     {!isMe && activeChat.type !== 'direct' && (
-                      <span className="text-[10px] font-bold text-slate-450 dark:text-slate-500">
+                      <span className="text-[11px] font-bold text-[#008069] tracking-tight block ml-0.5 mb-0.5">
                         {sender.name}
                       </span>
                     )}
 
                     {/* Message Bubble Container */}
-                    <div className="relative group/bubble flex flex-col max-w-full">
+                    <div className="relative group flex flex-col max-w-full">
 
-                      {/* Hover action dropdown trigger button */}
+                      {/* Hover / Touch action dropdown trigger button */}
                       {!msg.isDeleted && (
                         <button
                           type="button"
                           onClick={(e) => {
+                            e.preventDefault();
                             e.stopPropagation();
-                            setActiveMsgMenuId(activeMsgMenuId === msg.id ? null : msg.id);
+                            setActiveMsgMenuId(prev => prev === msg.id ? null : msg.id);
                             setShowEmojiPickerMsgId(null);
                             setShowFullEmojiPickerMsgId(null);
                           }}
                           className={`
-                            absolute top-1.5 right-1.5 p-1 rounded-md transition-all z-20 cursor-pointer shadow-xs
+                            absolute top-1.5 right-1.5 p-1 rounded-md transition-all z-20 cursor-pointer shadow-xs pointer-events-auto
                             ${activeMsgMenuId === msg.id 
-                              ? 'opacity-100 pointer-events-auto' 
-                              : 'opacity-0 group-hover/bubble:opacity-100 pointer-events-none group-hover/bubble:pointer-events-auto'
+                              ? 'opacity-100' 
+                              : 'opacity-0 group-hover:opacity-100 group-focus:opacity-100 group-active:opacity-100'
                             }
                             ${isMe 
                               ? 'text-slate-500 hover:text-slate-900 hover:bg-black/10 bg-emerald-100/50' 
@@ -1271,7 +1296,7 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen }) => {
 
                       {/* Image attachment rendering */}
                       {msg.type === 'image' && msg.attachmentUrl && (
-                        <div className="relative mt-1 max-w-[240px] overflow-hidden rounded-lg cursor-zoom-in border-0">
+                        <div className="relative mt-1 max-w-full sm:max-w-[240px] overflow-hidden rounded-lg cursor-zoom-in border-0">
                           <img
                             src={msg.attachmentUrl}
                             alt={msg.attachmentName || "Attachment"}
@@ -1289,7 +1314,7 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen }) => {
                           rel="noopener noreferrer"
                           download={msg.attachmentName}
                           onClick={(e) => handleDownloadFile(e, msg.attachmentUrl, msg.attachmentName)}
-                          className="flex items-center justify-between gap-3 p-3 mt-1.5 rounded-xl border-0 bg-black/5 hover:bg-black/10 transition-colors duration-200 cursor-pointer max-w-[260px] group/file text-slate-800 decoration-transparent"
+                          className="flex items-center justify-between gap-3 p-3 mt-1.5 rounded-xl border-0 bg-black/5 hover:bg-black/10 transition-colors duration-200 cursor-pointer max-w-full sm:max-w-[260px] group/file text-slate-800 decoration-transparent"
                         >
                           <div className="flex items-center gap-3 min-w-0">
                             <div className="h-10 w-10 rounded-lg bg-red-500/10 text-red-500 flex items-center justify-center shrink-0 group-hover/file:bg-red-500/20 transition-colors">
@@ -1801,8 +1826,8 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen }) => {
         title="Choose how long your pin lasts"
         size="sm"
       >
-        <div className="space-y-5 text-left select-none p-1">
-          <p className="text-xs text-slate-500 font-medium leading-relaxed">
+        <div className="space-y-4 text-left select-none p-1">
+          <p className="text-xs text-slate-600 font-medium leading-relaxed">
             Select a duration for how long this message will remain pinned at the top of this chat.
           </p>
 
@@ -1811,58 +1836,61 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen }) => {
               { hours: 24, label: '24 hours', sub: 'Best for temporary announcements' },
               { hours: 168, label: '7 days', sub: 'Best for weekly updates (Recommended)' },
               { hours: 720, label: '30 days', sub: 'Best for monthly guidelines and links' }
-            ].map(option => (
-              <label
-                key={option.hours}
-                onClick={() => setSelectedDurationHours(option.hours)}
-                className={`
-                  flex items-center justify-between p-3.5 rounded-xl border cursor-pointer transition-all
-                  ${selectedDurationHours === option.hours
-                    ? 'border-indigo-500 bg-indigo-50/50 dark:bg-indigo-500/10 shadow-xs'
-                    : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50'
-                  }
-                `}
-              >
-                <div className="flex items-center gap-3">
-                  <input
-                    type="radio"
-                    name="pinDuration"
-                    checked={selectedDurationHours === option.hours}
-                    onChange={() => setSelectedDurationHours(option.hours)}
-                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-                  />
-                  <div>
-                    <div className="text-xs font-bold text-slate-900 dark:text-white">
-                      {option.label}
+            ].map(option => {
+              const isSelected = selectedDurationHours === option.hours;
+              return (
+                <div
+                  key={option.hours}
+                  onClick={() => setSelectedDurationHours(option.hours)}
+                  className={`
+                    flex items-center justify-between p-3.5 rounded-2xl border-2 cursor-pointer transition-all
+                    ${isSelected
+                      ? 'border-[#00a884] bg-emerald-50/80 shadow-sm ring-1 ring-[#00a884]/30'
+                      : 'border-slate-200 bg-white hover:bg-slate-50'
+                    }
+                  `}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`h-5 w-5 rounded-full border-2 flex items-center justify-center transition-colors ${isSelected ? 'border-[#00a884] bg-[#00a884]' : 'border-slate-300 bg-white'}`}>
+                      {isSelected && <div className="h-2 w-2 rounded-full bg-white" />}
                     </div>
-                    <div className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">
-                      {option.sub}
+                    <div>
+                      <div className={`text-xs font-extrabold ${isSelected ? 'text-[#111b21]' : 'text-slate-800'}`}>
+                        {option.label}
+                      </div>
+                      <div className={`text-[11px] font-medium ${isSelected ? 'text-[#008069] font-bold' : 'text-slate-500'}`}>
+                        {option.sub}
+                      </div>
                     </div>
                   </div>
+                  {isSelected && (
+                    <Pin className="h-4 w-4 text-[#00a884] shrink-0" />
+                  )}
                 </div>
-              </label>
-            ))}
+              );
+            })}
           </div>
 
-          <p className="text-[11px] text-slate-400 font-medium italic">
+          <p className="text-[11px] text-slate-500 font-medium italic pt-1">
             💡 You can manually unpin this message at any time during this period.
           </p>
 
-          <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-800">
-            <Button
+          <div className="flex justify-end gap-2.5 pt-3.5 border-t border-slate-200">
+            <button
               type="button"
-              variant="outline"
               onClick={() => { setPinModalOpen(false); setTargetPinMessage(null); }}
-              className="rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-extrabold"
+              className="px-4 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 font-extrabold text-xs cursor-pointer transition-colors"
             >
               Cancel
-            </Button>
-            <Button
+            </button>
+            <button
+              type="button"
               onClick={confirmPinMessage}
-              className="rounded-xl bg-slate-950 hover:bg-slate-900 text-white font-extrabold text-xs shadow-md"
+              className="px-5 py-2.5 rounded-xl bg-[#00a884] hover:bg-[#008069] text-white font-extrabold text-xs shadow-md shadow-[#00a884]/20 transition-all flex items-center gap-1.5 cursor-pointer"
             >
+              <Pin className="h-3.5 w-3.5" />
               Pin Message
-            </Button>
+            </button>
           </div>
         </div>
       </Modal>

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { 
-  MessageSquare, Settings as SettingsIcon, ShieldCheck, LogOut, Menu, X, 
+import {
+  MessageSquare, Settings as SettingsIcon, ShieldCheck, LogOut, Menu, X,
   User, Bell, Search, Info, HelpCircle
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -16,10 +16,11 @@ import { Avatar } from '../../components/ui/Avatar';
 import { ThemeToggle } from '../../components/ui/ThemeToggle';
 import { Tooltip } from '../../components/ui/Tooltip';
 import { ToastContainer } from '../../components/ui/Toast';
+import { BrandLogo } from '../../components/ui/BrandLogo';
 
 export const Layout = () => {
   const { user, logout } = useAuth();
-  const { activeChatId } = useChat();
+  const { activeChatId, selectChat } = useChat();
   const { showToast, notifications } = useNotifications();
   const navigate = useNavigate();
   const location = useLocation();
@@ -40,6 +41,12 @@ export const Layout = () => {
     navigate('/login');
   };
 
+  const handleBackToChats = () => {
+    selectChat(null);
+    setMobileSidebarOpen(true);
+    setDesktopSidebarOpen(true);
+  };
+
   const toggleRightSidebar = () => {
     setRightSidebarOpen(prev => !prev);
   };
@@ -48,8 +55,8 @@ export const Layout = () => {
   const isAdminUser = user?.role === 'Admin';
 
   return (
-    <div className="h-screen w-screen flex bg-[#f0f2f5] text-slate-800 overflow-hidden font-sans transition-colors duration-300">
-      
+    <div className="h-screen w-full max-w-full flex bg-[#f0f2f5] text-slate-800 overflow-x-hidden overflow-y-hidden font-sans transition-colors duration-300">
+
       {/* 1. Global Navigation Strip (Thin Sidebar) - Desktop */}
       <aside className="hidden sm:flex flex-col items-center justify-between w-18 py-6 bg-[#f0f2f5] border-r border-slate-200/80 flex-shrink-0 z-20">
         <div className="flex flex-col items-center gap-6 w-full">
@@ -94,11 +101,11 @@ export const Layout = () => {
 
           {/* User profile button */}
           <Link to="/settings">
-            <Avatar 
-              src={user?.avatar} 
-              name={user?.name || "Me"} 
-              size="sm" 
-              status="online" 
+            <Avatar
+              src={user?.avatar}
+              name={user?.name || "Me"}
+              size="sm"
+              status="online"
               color={user?.avatarColor}
             />
           </Link>
@@ -106,50 +113,31 @@ export const Layout = () => {
       </aside>
 
       {/* 2. Middle Content Container */}
-      <div className="flex-1 flex overflow-hidden relative">
-        
-        {/* Mobile Header bar */}
-        <div className="sm:hidden absolute top-0 left-0 right-0 h-14 bg-white/90 backdrop-blur-xl border-b border-slate-200 z-30 flex items-center justify-between px-4">
-          <div className="flex items-center gap-2">
-            {isChatRoute && (
-              <button 
-                onClick={() => {
-                  setMobileSidebarOpen(prev => !prev);
-                  setDesktopSidebarOpen(prev => !prev);
-                }}
-                className="p-1 rounded-lg text-slate-500 hover:bg-slate-100 cursor-pointer"
-              >
-                <Menu className="h-5 w-5" />
-              </button>
-            )}
-            <div className="flex items-center gap-1.5">
-              <div className="h-6 w-6 rounded-lg bg-slate-950 flex items-center justify-center shadow-xs">
-                <span className="text-xs font-black bg-gradient-to-tr from-indigo-400 via-sky-300 to-emerald-400 bg-clip-text text-transparent">S</span>
-              </div>
-              <span className="font-extrabold text-sm tracking-tight text-slate-900">Sampark</span>
+      <div className="flex-1 flex overflow-hidden relative w-full max-w-full">
+
+        {/* Mobile Header bar - Clean, only Sampark and Profile Avatar icon (only show on chat list / settings) */}
+        {!activeChatId && (
+          <div className="sm:hidden absolute top-0 left-0 right-0 h-14 bg-white/90 backdrop-blur-xl border-b border-slate-200 z-30 flex items-center justify-between px-4">
+            <Link to="/chat" title="Return to main chats" className="cursor-pointer hover:opacity-80 transition-opacity">
+              <BrandLogo size="sm" showSubtitle={false} />
+            </Link>
+            <div className="flex items-center">
+              <Link to="/settings" title="Profile">
+                <Avatar src={user?.avatar} name={user?.name} size="xs" color={user?.avatarColor} />
+              </Link>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <Link
-              to="/settings"
-              className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-slate-700 shadow-sm"
-            >
-              My Profile
-            </Link>
-            <Link to="/settings">
-              <Avatar src={user?.avatar} name={user?.name} size="xs" color={user?.avatarColor} />
-            </Link>
-          </div>
-        </div>
+        )}
 
         {/* Left conversations list sidebar drawer - only show on chat routes */}
         {isChatRoute && (
           <div className={`
-            absolute sm:static top-14 bottom-0 left-0 z-20 
+            absolute sm:static ${!activeChatId ? 'top-14 h-[calc(100vh-3.5rem)]' : 'top-0 h-full'} bottom-0 left-0 right-0 z-20 
             bg-white/92 backdrop-blur-xl
-            transition-all duration-300 ease-in-out transform flex flex-col h-[calc(100vh-3.5rem)] sm:h-full flex-shrink-0
-            ${desktopSidebarOpen ? 'w-80 border-r border-slate-200/80' : 'w-0 overflow-hidden border-r-0'}
-            ${mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+            transition-all duration-300 ease-in-out transform flex flex-col sm:h-full flex-shrink-0
+            w-full sm:w-80
+            ${desktopSidebarOpen ? 'sm:w-80 border-r border-slate-200/80' : 'sm:w-0 overflow-hidden border-r-0'}
+            ${mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full pointer-events-none sm:pointer-events-auto'}
             sm:translate-x-0
           `}>
             <SidebarLeft closeMobileSidebar={() => {
@@ -161,12 +149,13 @@ export const Layout = () => {
 
         {/* Center active chat/settings/admin pane */}
         <main className={`
-          flex-grow flex flex-col bg-white/55 relative h-full pt-14 sm:pt-0
+          flex-grow flex flex-col bg-white/55 relative h-full w-full max-w-full overflow-hidden
           transition-all duration-300
+          ${!activeChatId ? 'pt-14 sm:pt-0' : 'pt-0'}
         `}>
           {isChatRoute && (
             activeChatId ? (
-              <ChatWindow toggleRightSidebar={toggleRightSidebar} isRightSidebarOpen={rightSidebarOpen} />
+              <ChatWindow toggleRightSidebar={toggleRightSidebar} isRightSidebarOpen={rightSidebarOpen} onBack={handleBackToChats} />
             ) : (
               <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
                 <div className="h-16 w-16 rounded-2xl bg-slate-900 text-white flex items-center justify-center mb-4 animate-bounce shadow-[0_16px_35px_rgba(15,23,42,0.16)]">
@@ -187,7 +176,7 @@ export const Layout = () => {
 
         {/* Right context info panel - only show on chat routes */}
         {isChatRoute && activeChatId && rightSidebarOpen && (
-          <div className="absolute lg:static top-14 bottom-0 right-0 w-80 bg-white/94 backdrop-blur-xl border-l border-slate-200/80 z-20 lg:z-10 flex flex-col h-[calc(100vh-3.5rem)] sm:h-full flex-shrink-0">
+          <div className="absolute lg:static top-0 bottom-0 right-0 w-full sm:w-80 bg-white/94 backdrop-blur-xl border-l border-slate-200/80 z-30 lg:z-10 flex flex-col h-full flex-shrink-0">
             <SidebarRight onClose={toggleRightSidebar} />
           </div>
         )}

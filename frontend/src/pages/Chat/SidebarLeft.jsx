@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Search, Plus, Pin, Check, CheckCheck, Users, MessageCircle, MessageSquare, MoreVertical, 
+import {
+  Search, Plus, Pin, Check, CheckCheck, Users, MessageCircle, MessageSquare, MoreVertical,
   Camera, X, VolumeX, Mail, BellOff, UserPlus, ArrowLeft, ChevronRight,
   ChevronDown, Archive, Star, Trash2, Eraser, SquarePen, SlidersHorizontal, CircleDashed, Settings
 } from 'lucide-react';
@@ -13,9 +13,10 @@ import { Badge } from '../../components/ui/Badge';
 import { Modal } from '../../components/ui/Modal';
 import { Button } from '../../components/ui/Button';
 import { Tooltip } from '../../components/ui/Tooltip';
+import { BrandLogo } from '../../components/ui/BrandLogo';
 
 export const SidebarLeft = ({ closeMobileSidebar }) => {
-  const { 
+  const {
     chats, messages, groups, selectChat, activeChatId, createGroup, createDirectChat, uploadFile,
     togglePinChat, toggleArchiveChat, toggleFavoriteChat, toggleUnreadChat, clearChatMessages, deleteChat
   } = useChat();
@@ -201,7 +202,7 @@ export const SidebarLeft = ({ closeMobileSidebar }) => {
       const info = isDirect ? getDirectChatInfo(chat) : getGroupChatInfo(chat);
 
       // Search Filter
-      const matchesSearch = searchQuery === '' || 
+      const matchesSearch = searchQuery === '' ||
         info.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (isDirect && ((info.phone && info.phone.toLowerCase().includes(searchQuery.toLowerCase())) || info.email?.toLowerCase().includes(searchQuery.toLowerCase())));
 
@@ -209,7 +210,7 @@ export const SidebarLeft = ({ closeMobileSidebar }) => {
       if (activeFilter === 'archived') {
         return matchesSearch && !!chat.archived;
       }
-      
+
       // For non-archived tabs, exclude archived chats
       if (chat.archived) return false;
 
@@ -234,7 +235,7 @@ export const SidebarLeft = ({ closeMobileSidebar }) => {
   return (
     <>
       <div className="flex flex-col h-full bg-[#f0f4f8] border-r border-slate-200/80 select-none relative" ref={menuContainerRef}>
-        
+
         {/* Top Header */}
         <div className="p-4 bg-[#f0f4f8] border-b border-slate-200/80 space-y-3 shrink-0">
           <div className="flex items-center justify-between">
@@ -259,7 +260,7 @@ export const SidebarLeft = ({ closeMobileSidebar }) => {
               className="block w-full rounded-full bg-[#dce4ec] border-0 text-xs py-2.5 pl-10 pr-9 outline-none text-[#111b21] placeholder-[#667781] font-medium"
             />
             {searchQuery && (
-              <button 
+              <button
                 onClick={() => setSearchQuery('')}
                 className="absolute inset-y-0 right-0 pr-3 flex items-center text-[#667781] hover:text-[#111b21]"
               >
@@ -316,8 +317,8 @@ export const SidebarLeft = ({ closeMobileSidebar }) => {
                   }}
                   className={`
                     p-3.5 border-b border-slate-100 flex items-center gap-3 cursor-pointer transition-colors text-left relative group
-                    ${isActive 
-                      ? 'bg-[#dce4ec]' 
+                    ${isActive
+                      ? 'bg-[#dce4ec]'
                       : 'hover:bg-[#f0f4f8] bg-white'
                     }
                   `}
@@ -376,7 +377,7 @@ export const SidebarLeft = ({ closeMobileSidebar }) => {
 
                   {/* WhatsApp Context Dropdown Menu */}
                   {openMenuChatId === chat.id && (
-                    <div 
+                    <div
                       onClick={(e) => e.stopPropagation()}
                       className="absolute right-3 top-10 z-50 bg-slate-900/95 dark:bg-slate-950 backdrop-blur-md text-slate-200 rounded-xl shadow-2xl border border-slate-700/80 py-1.5 w-48 text-xs font-semibold select-none animate-in fade-in zoom-in-95"
                     >
@@ -413,18 +414,6 @@ export const SidebarLeft = ({ closeMobileSidebar }) => {
                       >
                         <Mail className="h-4 w-4 text-slate-400" />
                         {chat.isUnread || chat.unreadCount > 0 ? "Mark as read" : "Mark as unread"}
-                      </button>
-
-                      <button
-                        onClick={() => {
-                          toggleFavoriteChat(chat.id);
-                          setOpenMenuChatId(null);
-                          showToast(chat.favorite ? "Removed from Favorites" : "Added to Favorites", chat.favorite ? "Removed from Favorites filter" : "Added to Favorites filter", "info");
-                        }}
-                        className="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-slate-800 transition-colors text-left"
-                      >
-                        <Star className={`h-4 w-4 ${chat.favorite ? 'text-amber-400 fill-amber-400' : 'text-slate-400'}`} />
-                        {chat.favorite ? "Remove from Favorites" : "Add to Favorites"}
                       </button>
 
                       <div className="my-1 border-t border-slate-800" />
@@ -507,9 +496,8 @@ export const SidebarLeft = ({ closeMobileSidebar }) => {
 
           <button
             onClick={() => setIsPlusMenuOpen(!isPlusMenuOpen)}
-            className={`p-3.5 rounded-full bg-[#00a884] hover:bg-[#008f6f] text-white shadow-md transition-all cursor-pointer transform hover:scale-105 active:scale-95 flex items-center justify-center ${
-              isPlusMenuOpen ? 'rotate-45 bg-[#111b21]' : ''
-            }`}
+            className={`p-3.5 rounded-full bg-[#00a884] hover:bg-[#008f6f] text-white shadow-md transition-all cursor-pointer transform hover:scale-105 active:scale-95 flex items-center justify-center ${isPlusMenuOpen ? 'rotate-45 bg-[#111b21]' : ''
+              }`}
             title="New Action Menu"
           >
             <Plus className="h-6 w-6" />
@@ -545,9 +533,9 @@ export const SidebarLeft = ({ closeMobileSidebar }) => {
                 const isAdmin = u.role === 'admin' || u.role === 'Admin';
                 return uId !== 'user_me' && uId !== myRealId && u.email !== user?.email &&
                   !isAdmin &&
-                  (u.name.toLowerCase().includes(contactEmail.toLowerCase()) || 
-                   (u.phone && u.phone.toLowerCase().includes(contactEmail.toLowerCase())) ||
-                   u.email.toLowerCase().includes(contactEmail.toLowerCase()));
+                  (u.name.toLowerCase().includes(contactEmail.toLowerCase()) ||
+                    (u.phone && u.phone.toLowerCase().includes(contactEmail.toLowerCase())) ||
+                    u.email.toLowerCase().includes(contactEmail.toLowerCase()));
               })
               .map((u) => {
                 const targetId = u.id || u._id?.toString();
@@ -567,12 +555,12 @@ export const SidebarLeft = ({ closeMobileSidebar }) => {
                   </div>
                 );
               })}
-              {allUsers.filter(u => {
-                const uId = u.id || u._id?.toString();
-                const myRealId = user?.id || user?._id?.toString();
-                const isAdmin = u.role === 'admin' || u.role === 'Admin';
-                return uId !== 'user_me' && uId !== myRealId && u.email !== user?.email && !isAdmin && (u.name.toLowerCase().includes(contactEmail.toLowerCase()) || (u.phone && u.phone.toLowerCase().includes(contactEmail.toLowerCase())) || u.email.toLowerCase().includes(contactEmail.toLowerCase()));
-              }).length === 0 && (
+            {allUsers.filter(u => {
+              const uId = u.id || u._id?.toString();
+              const myRealId = user?.id || user?._id?.toString();
+              const isAdmin = u.role === 'admin' || u.role === 'Admin';
+              return uId !== 'user_me' && uId !== myRealId && u.email !== user?.email && !isAdmin && (u.name.toLowerCase().includes(contactEmail.toLowerCase()) || (u.phone && u.phone.toLowerCase().includes(contactEmail.toLowerCase())) || u.email.toLowerCase().includes(contactEmail.toLowerCase()));
+            }).length === 0 && (
                 <div className="p-4 text-center text-xs text-[#667781] font-semibold">
                   No users found
                 </div>
@@ -609,7 +597,7 @@ export const SidebarLeft = ({ closeMobileSidebar }) => {
         size="md"
       >
         <form onSubmit={handleCreateGroupSubmit} className="space-y-5 text-left p-1 select-none">
-          
+
           {/* STEP 1: Select Members */}
           {groupStep === 1 && (
             <div className="space-y-4">
@@ -626,14 +614,14 @@ export const SidebarLeft = ({ closeMobileSidebar }) => {
                     const m = allUsers.find(u => u.id === memberId || u._id?.toString() === memberId);
                     if (!m) return null;
                     return (
-                      <div 
-                        key={memberId} 
+                      <div
+                        key={memberId}
                         className="inline-flex items-center gap-1.5 bg-[#008069]/10 border border-[#008069]/30 pl-1.5 pr-2.5 py-1 rounded-full text-[11px] font-extrabold text-[#008069] shadow-2xs"
                       >
                         <Avatar src={m.avatar} name={m.name} size="xs" color={m.avatarColor} />
                         <span>{m.name.split(' ')[0]}</span>
-                        <button 
-                          type="button" 
+                        <button
+                          type="button"
                           onClick={() => handleToggleMember(memberId)}
                           className="text-[#008069] hover:text-rose-500 transition-colors ml-0.5"
                         >
@@ -666,9 +654,9 @@ export const SidebarLeft = ({ closeMobileSidebar }) => {
                     const isAdmin = u.role === 'admin' || u.role === 'Admin';
                     return uId !== 'user_me' && uId !== myRealId && u.email !== user?.email &&
                       !isAdmin &&
-                      (u.name.toLowerCase().includes(memberSearchQuery.toLowerCase()) || 
-                       (u.phone && u.phone.toLowerCase().includes(memberSearchQuery.toLowerCase())) ||
-                       u.email.toLowerCase().includes(memberSearchQuery.toLowerCase()));
+                      (u.name.toLowerCase().includes(memberSearchQuery.toLowerCase()) ||
+                        (u.phone && u.phone.toLowerCase().includes(memberSearchQuery.toLowerCase())) ||
+                        u.email.toLowerCase().includes(memberSearchQuery.toLowerCase()));
                   })
                   .map((u) => {
                     const uId = u.id || u._id?.toString();
@@ -678,10 +666,9 @@ export const SidebarLeft = ({ closeMobileSidebar }) => {
                         key={uId}
                         onClick={() => handleToggleMember(uId)}
                         className={`
-                          p-3 rounded-2xl flex items-center justify-between cursor-pointer transition-all border ${
-                            isSelected 
-                              ? 'bg-[#008069]/10 border-[#008069] shadow-2xs' 
-                              : 'bg-white border-slate-200/80 shadow-2xs hover:bg-slate-50'
+                          p-3 rounded-2xl flex items-center justify-between cursor-pointer transition-all border ${isSelected
+                            ? 'bg-[#008069]/10 border-[#008069] shadow-2xs'
+                            : 'bg-white border-slate-200/80 shadow-2xs hover:bg-slate-50'
                           }
                         `}
                       >
@@ -695,7 +682,7 @@ export const SidebarLeft = ({ closeMobileSidebar }) => {
                         <input
                           type="checkbox"
                           checked={isSelected}
-                          onChange={() => {}} // Handled by container click
+                          onChange={() => { }} // Handled by container click
                           className="h-4 w-4 accent-[#008069] rounded cursor-pointer"
                         />
                       </div>
@@ -704,15 +691,15 @@ export const SidebarLeft = ({ closeMobileSidebar }) => {
               </div>
 
               <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-200/80">
-                <Button 
-                  type="button" 
-                  variant="outline" 
+                <Button
+                  type="button"
+                  variant="outline"
                   onClick={() => setIsGroupModalOpen(false)}
                   className="rounded-xl border border-slate-200 font-extrabold text-xs text-[#111b21]"
                 >
                   Cancel
                 </Button>
-                <Button 
+                <Button
                   type="button"
                   variant="primary"
                   disabled={selectedMembers.length === 0}
@@ -728,7 +715,7 @@ export const SidebarLeft = ({ closeMobileSidebar }) => {
           {/* STEP 2: Group Info & Selected Members Roster Preview */}
           {groupStep === 2 && (
             <div className="space-y-4">
-              
+
               {/* Avatar Upload Container */}
               <div className="flex flex-col items-center justify-center gap-2 mb-2">
                 <div className="relative group cursor-pointer" onClick={handleGroupAvatarClick}>
@@ -793,7 +780,7 @@ export const SidebarLeft = ({ closeMobileSidebar }) => {
                     const m = allUsers.find(u => u.id === memberId || u._id?.toString() === memberId);
                     if (!m) return null;
                     return (
-                      <div 
+                      <div
                         key={memberId}
                         className="flex items-center justify-between p-2.5 rounded-2xl bg-white border border-slate-200/80 shadow-2xs"
                       >
@@ -819,9 +806,9 @@ export const SidebarLeft = ({ closeMobileSidebar }) => {
 
               {/* Action buttons */}
               <div className="flex justify-between items-center pt-4 border-t border-slate-200/80">
-                <Button 
-                  type="button" 
-                  variant="outline" 
+                <Button
+                  type="button"
+                  variant="outline"
                   onClick={() => setGroupStep(1)}
                   className="rounded-xl border border-slate-200 font-extrabold text-xs text-[#111b21] gap-1.5"
                 >
