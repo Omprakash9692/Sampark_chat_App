@@ -2,9 +2,9 @@ import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import EmojiPicker from 'emoji-picker-react';
 import { AlertTriangle } from 'lucide-react';
-import { 
-  Phone, Search, Info, MoreVertical, Send, Smile, Paperclip, 
-  Mic, Image as ImageIcon, FileText, Check, CheckCheck, Trash2, Edit2, 
+import {
+  Phone, Search, Info, MoreVertical, Send, Smile, Paperclip,
+  Mic, Image as ImageIcon, FileText, Check, CheckCheck, Trash2, Edit2,
   CornerUpLeft, Reply, Forward, Pin, Play, Pause, X, Trash, Sparkles, Download, Video, Lock,
   ChevronDown, Copy, Star, Plus, UserX, Loader2, ArrowLeft
 } from 'lucide-react';
@@ -28,7 +28,7 @@ export const SimulatedVoicePlayer = ({ duration, url }) => {
   useEffect(() => {
     if (url && url !== '#') {
       audioRef.current = new Audio(url);
-      
+
       const onTimeUpdate = () => {
         const current = audioRef.current.currentTime;
         const total = audioRef.current.duration || 1;
@@ -81,7 +81,7 @@ export const SimulatedVoicePlayer = ({ duration, url }) => {
       >
         {isPlaying ? <Pause className="h-4 w-4 fill-current" /> : <Play className="h-4 w-4 fill-current ml-0.5" />}
       </button>
-      
+
       <div className="flex-1">
         <div className="flex items-end gap-[2px] h-10 w-full overflow-hidden select-none">
           {waveBars.map((height, idx) => {
@@ -116,9 +116,9 @@ const formatDateSeparator = (dateString) => {
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);
-  
+
   const msgDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  
+
   if (msgDate.getTime() === today.getTime()) {
     return "Today";
   } else if (msgDate.getTime() === yesterday.getTime()) {
@@ -127,31 +127,31 @@ const formatDateSeparator = (dateString) => {
     return date.toLocaleDateString([], { month: 'long', day: 'numeric', year: 'numeric' });
   }
 };
-const renderTextWithLinks = (text)=> {
+const renderTextWithLinks = (text) => {
   const urlRegex = /(https?:\/\/[^\s]+)/g;
   const parts = text.split(urlRegex);
-  return parts.map((part,i)=>
+  return parts.map((part, i) =>
     urlRegex.test(part) ? (
       <a
-      key={i}
-      href={part}
-      target="_blank"
-      rel="noopener noreferrer"
-      className='text-blue-500 underline underline-offset-2 hover:text-blue-600 break-all relative z-10'
-      onClick={(e)=> e.stopPropagation()}
+        key={i}
+        href={part}
+        target="_blank"
+        rel="noopener noreferrer"
+        className='text-blue-500 underline underline-offset-2 hover:text-blue-600 break-all relative z-10'
+        onClick={(e) => e.stopPropagation()}
       >
         {part}
       </a>
-    ):(
+    ) : (
       <span key={i}>{part}</span>
     )
   );
 };
 
 export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen, onBack }) => {
-  const { 
+  const {
     chats, activeChatId, getActiveChat, getChatMessages, sendMessage, uploadFile,
-    editMessage, deleteMessage, deleteMessageForMe, deleteMessageForEveryone, togglePinnedMessage, addReaction, typingUsers, groups, 
+    editMessage, deleteMessage, deleteMessageForMe, deleteMessageForEveryone, togglePinnedMessage, addReaction, typingUsers, groups,
     blockUser, unblockUser, reportUser, socket, blockedUserIds, selectChat
   } = useChat();
   const { user, allUsers } = useAuth();
@@ -165,20 +165,20 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen, onBack }) =
   const prevTypingUsersCountRef = useRef(0);
   const imageInputRef = useRef(null);
   const fileInputRef = useRef(null);
-  
+
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const streamRef = useRef(null);
-  
+
   const [inputText, setInputText] = useState('');
-  
+
   // Interaction states
   const [replyMessage, setReplyMessage] = useState(null);
   const [editingMessage, setEditingMessage] = useState(null);
   const [forwardMessage, setForwardMessage] = useState(null);
   const [searchInChatQuery, setSearchInChatQuery] = useState('');
   const [showSearchInChat, setShowSearchInChat] = useState(false);
-  
+
   // Pin Duration Modal states
   const [pinModalOpen, setPinModalOpen] = useState(false);
   const [targetPinMessage, setTargetPinMessage] = useState(null);
@@ -264,18 +264,18 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen, onBack }) =
 
   const recipientParticipant = isDirect
     ? activeChat.participants?.find(p => {
-        const pId = getPId(p);
-        return pId && pId !== 'user_me' && pId !== myRealId;
-      })
+      const pId = getPId(p);
+      return pId && pId !== 'user_me' && pId !== myRealId;
+    })
     : null;
 
   const recipientId = getPId(recipientParticipant);
 
   const recipient = isDirect && recipientId
     ? allUsers.find(u => {
-        const uId = (u.id || u._id)?.toString();
-        return uId === recipientId;
-      })
+      const uId = (u.id || u._id)?.toString();
+      return uId === recipientId;
+    })
     : null;
 
   const group = !isDirect
@@ -296,7 +296,7 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen, onBack }) =
 
   // Simulated Voice Recorder state
   const [isRecording, setIsRecording] = useState(false);
-  
+
   // Typing Indicator States
   const isTypingRef = useRef(false);
   const typingTimeoutRef = useRef(null);
@@ -427,7 +427,7 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen, onBack }) =
   };
 
   const chatTitle = isDirect ? recipient?.name : group?.name;
-  const chatSubtitle = isDirect 
+  const chatSubtitle = isDirect
     ? (recipient?.isOnline ? 'Active now' : formatLastSeen(recipient?.lastSeen))
     : `${group?.memberIds?.length || 0} participants`;
 
@@ -437,10 +437,10 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen, onBack }) =
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
       audioChunksRef.current = [];
-      
+
       const mediaRecorder = new MediaRecorder(stream);
       mediaRecorderRef.current = mediaRecorder;
-      
+
       mediaRecorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
           audioChunksRef.current.push(event.data);
@@ -468,7 +468,7 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen, onBack }) =
       const audioFile = new File([audioBlob], `voice-note-${Date.now()}.webm`, { type: "audio/webm" });
 
       showToast("Sending Voice Note", "Uploading voice message...", "info");
-      
+
       const uploaded = await uploadFile(audioFile);
       if (uploaded) {
         sendMessage(activeChatId, '', 'audio', {
@@ -495,7 +495,7 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen, onBack }) =
       mediaRecorderRef.current.onstop = null;
       mediaRecorderRef.current.stop();
     }
-    
+
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop());
       streamRef.current = null;
@@ -512,13 +512,13 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen, onBack }) =
       showToast("File Saved", "Mock download initiated.", "success");
       return;
     }
-    
+
     try {
       showToast("Downloading", "Downloading file...", "info");
       const response = await fetch(url);
       const blob = await response.blob();
       const blobUrl = window.URL.createObjectURL(blob);
-      
+
       const link = document.createElement('a');
       link.href = blobUrl;
       link.download = name || 'download';
@@ -754,11 +754,11 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen, onBack }) =
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-whatsapp-wallpaper">
-      
+
       {/* 1. Top Header */}
       <div className="h-16 px-3 sm:px-4 border-b border-[#e9edef] bg-[#f0f2f5] flex items-center justify-between z-10 shrink-0 select-none">
         <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
-          <button 
+          <button
             type="button"
             onClick={() => {
               if (onBack) {
@@ -773,10 +773,10 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen, onBack }) =
             <ArrowLeft className="h-5 w-5" />
           </button>
 
-          <Avatar 
-            src={isDirect ? recipient?.avatar : group?.avatar} 
-            name={chatTitle} 
-            size="md" 
+          <Avatar
+            src={isDirect ? recipient?.avatar : group?.avatar}
+            name={chatTitle}
+            size="md"
             status={isDirect ? (recipient?.isOnline ? 'online' : 'offline') : null}
             color={isDirect ? recipient?.avatarColor : group?.avatarColor}
           />
@@ -791,26 +791,26 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen, onBack }) =
         </div>
 
         <div className="flex items-center gap-1">
-          <button 
-            onClick={() => setShowSearchInChat(!showSearchInChat)} 
+          <button
+            onClick={() => setShowSearchInChat(!showSearchInChat)}
             className={`p-2 rounded-xl cursor-pointer ${showSearchInChat ? 'bg-slate-900 text-white' : 'text-slate-450 hover:text-slate-750 hover:bg-slate-100'}`}
           >
             <Search className="h-4.5 w-4.5" />
           </button>
-          <button 
-            onClick={toggleRightSidebar} 
+          <button
+            onClick={toggleRightSidebar}
             className={`p-2 rounded-xl cursor-pointer ${isRightSidebarOpen ? 'bg-slate-900 text-white' : 'text-slate-450 hover:text-slate-750 hover:bg-slate-100'}`}
           >
             <Info className="h-4.5 w-4.5" />
           </button>
-          <button 
+          <button
             onClick={() => {
               if (onBack) {
                 onBack();
               } else {
                 selectChat(null);
               }
-            }} 
+            }}
             className="hidden sm:flex p-2 rounded-xl cursor-pointer text-slate-450 hover:text-rose-600 hover:bg-rose-50 transition-colors border border-slate-200/60 ml-1"
             title="Close chat"
           >
@@ -838,20 +838,14 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen, onBack }) =
             }}
           >
             {/* Coloured left accent bar (cycles colours for each pin slot) */}
-            <div className={`w-1 shrink-0 rounded-sm my-1 ml-2 ${
-              safePinnedIndex % 3 === 0 ? 'bg-indigo-500' :
-              safePinnedIndex % 3 === 1 ? 'bg-emerald-500' : 'bg-amber-500'
-            }`} />
+            <div className={`w-1 shrink-0 rounded-sm my-1 ml-2 ${safePinnedIndex % 3 === 0 ? 'bg-indigo-500' :
+                safePinnedIndex % 3 === 1 ? 'bg-emerald-500' : 'bg-amber-500'
+              }`} />
 
-            {/* Pin icon + counter + content */}
-            <div className="flex-1 min-w-0 px-3 py-2">
+            {/* Pin icon + content */}
+            <div className="flex-1 min-w-0 px-3 py-1.5">
               <div className="flex items-center gap-1.5 mb-0.5">
-                <Pin className="h-3 w-3 text-[#54656f] shrink-0" />
-                <span className="text-[10px] font-bold text-[#54656f] uppercase tracking-wider">
-                  {pinnedMessages.length > 1
-                    ? `Pinned message ${safePinnedIndex + 1} of ${pinnedMessages.length}`
-                    : 'Pinned message'}
-                </span>
+                <Pin className="h-3.5 w-3.5 text-[#54656f] shrink-0" />
               </div>
               <p className="text-xs text-[#111b21] font-medium truncate leading-snug">
                 {getPinnedPreview(currentPinnedMsg)}
@@ -938,18 +932,18 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen, onBack }) =
                 className="flex-1 bg-transparent border-0 outline-none text-xs text-slate-800"
               />
               {searchInChatQuery && (
-                <button 
+                <button
                   onClick={() => {
                     setSearchInChatQuery('');
                     setShowSearchInChat(false);
-                  }} 
+                  }}
                   className="text-[10px] font-bold text-slate-400 hover:text-slate-600 uppercase"
                 >
                   Clear
                 </button>
               )}
-              <button 
-                onClick={() => { setShowSearchInChat(false); setSearchInChatQuery(''); }} 
+              <button
+                onClick={() => { setShowSearchInChat(false); setSearchInChatQuery(''); }}
                 className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400"
               >
                 <X className="h-4 w-4" />
@@ -990,464 +984,463 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen, onBack }) =
                       </span>
                     </div>
                   )}
-                  <div 
+                  <div
                     id={msg.id}
                     className={`flex gap-2 sm:gap-3 max-w-[90%] sm:max-w-[70%] transition-colors duration-500 rounded-xl p-0.5 ${isMe ? 'ml-auto flex-row-reverse text-right' : 'mr-auto text-left'}`}
                   >
-                  {/* Avatar */}
-                  {!isMe && (
-                    <div className="shrink-0">
-                      <Avatar 
-                        src={sender.avatar} 
-                        name={sender.name} 
-                        size="sm" 
-                        color={sender.avatarColor}
-                      />
-                    </div>
-                  )}
-
-                  <div className={`space-y-1 flex flex-col w-full ${isMe ? 'items-end' : 'items-start'}`}>
-                    {/* Sender Name tag */}
-                    {!isMe && activeChat.type !== 'direct' && (
-                      <span className="text-[11px] font-bold text-[#008069] tracking-tight block ml-0.5 mb-0.5">
-                        {sender.name}
-                      </span>
+                    {/* Avatar */}
+                    {!isMe && (
+                      <div className="shrink-0">
+                        <Avatar
+                          src={sender.avatar}
+                          name={sender.name}
+                          size="sm"
+                          color={sender.avatarColor}
+                        />
+                      </div>
                     )}
 
-                    {/* Message Bubble Container */}
-                    <div className="relative group flex flex-col max-w-full">
-
-                      {/* Hover / Touch action dropdown trigger button */}
-                      {!msg.isDeleted && (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            setActiveMsgMenuId(prev => prev === msg.id ? null : msg.id);
-                            setShowEmojiPickerMsgId(null);
-                            setShowFullEmojiPickerMsgId(null);
-                          }}
-                          className={`
-                            absolute top-1.5 right-1.5 p-1 rounded-md transition-all z-20 cursor-pointer shadow-xs pointer-events-auto
-                            ${activeMsgMenuId === msg.id 
-                              ? 'opacity-100' 
-                              : 'opacity-0 group-hover:opacity-100 group-focus:opacity-100 group-active:opacity-100'
-                            }
-                            ${isMe 
-                              ? 'text-slate-500 hover:text-slate-900 hover:bg-black/10 bg-emerald-100/50' 
-                              : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100 bg-white/70'
-                            }
-                          `}
-                          title="Message Options"
-                        >
-                          <ChevronDown className="h-3.5 w-3.5" />
-                        </button>
+                    <div className={`space-y-1 flex flex-col w-full ${isMe ? 'items-end' : 'items-start'}`}>
+                      {/* Sender Name tag */}
+                      {!isMe && activeChat.type !== 'direct' && (
+                        <span className="text-[11px] font-bold text-[#008069] tracking-tight block ml-0.5 mb-0.5">
+                          {sender.name}
+                        </span>
                       )}
 
-                      {/* Standalone Full Emoji Picker Popover for this specific message */}
-                      {showFullEmojiPickerMsgId === msg.id && (() => {
-                        const isNearBottom = filteredMessages.length >= 4 && index >= filteredMessages.length - 2;
-                        return (
-                          <>
-                            <div 
-                              className="fixed inset-0 z-[95] bg-transparent"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setShowFullEmojiPickerMsgId(null);
-                              }}
-                            />
-                            <div 
-                              className={`
+                      {/* Message Bubble Container */}
+                      <div className="relative group flex flex-col max-w-full">
+
+                        {/* Hover / Touch action dropdown trigger button */}
+                        {!msg.isDeleted && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setActiveMsgMenuId(prev => prev === msg.id ? null : msg.id);
+                              setShowEmojiPickerMsgId(null);
+                              setShowFullEmojiPickerMsgId(null);
+                            }}
+                            className={`
+                            absolute top-1.5 right-1.5 p-1 rounded-md transition-all z-20 cursor-pointer shadow-xs pointer-events-auto
+                            ${activeMsgMenuId === msg.id
+                                ? 'opacity-100'
+                                : 'opacity-0 group-hover:opacity-100 group-focus:opacity-100 group-active:opacity-100'
+                              }
+                            ${isMe
+                                ? 'text-slate-500 hover:text-slate-900 hover:bg-black/10 bg-emerald-100/50'
+                                : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100 bg-white/70'
+                              }
+                          `}
+                            title="Message Options"
+                          >
+                            <ChevronDown className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+
+                        {/* Standalone Full Emoji Picker Popover for this specific message */}
+                        {showFullEmojiPickerMsgId === msg.id && (() => {
+                          const isNearBottom = filteredMessages.length >= 4 && index >= filteredMessages.length - 2;
+                          return (
+                            <>
+                              <div
+                                className="fixed inset-0 z-[95] bg-transparent"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setShowFullEmojiPickerMsgId(null);
+                                }}
+                              />
+                              <div
+                                className={`
                                 absolute z-[100] ${isMe ? 'right-0' : 'left-0'} 
                                 ${isNearBottom ? 'bottom-full mb-2 top-auto' : 'top-full mt-2 bottom-auto'} 
                                 shadow-2xl rounded-2xl overflow-hidden border border-slate-700/80 bg-slate-900 animate-in fade-in zoom-in-95
                               `}
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <EmojiPicker
-                                theme="dark"
-                                onEmojiClick={(emojiData) => {
-                                  addReaction(msg.id, emojiData.emoji);
-                                  setShowFullEmojiPickerMsgId(null);
-                                  setShowEmojiPickerMsgId(null);
-                                  setActiveMsgMenuId(null);
-                                }}
-                                searchPlaceholder="Search emoji..."
-                                width={Math.min(300, typeof window !== 'undefined' ? window.innerWidth - 32 : 300)}
-                                height={320}
-                              />
-                            </div>
-                          </>
-                        );
-                      })()}
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <EmojiPicker
+                                  theme="dark"
+                                  onEmojiClick={(emojiData) => {
+                                    addReaction(msg.id, emojiData.emoji);
+                                    setShowFullEmojiPickerMsgId(null);
+                                    setShowEmojiPickerMsgId(null);
+                                    setActiveMsgMenuId(null);
+                                  }}
+                                  searchPlaceholder="Search emoji..."
+                                  width={Math.min(300, typeof window !== 'undefined' ? window.innerWidth - 32 : 300)}
+                                  height={320}
+                                />
+                              </div>
+                            </>
+                          );
+                        })()}
 
-                      {/* WhatsApp Context Dropdown Menu */}
-                      {activeMsgMenuId === msg.id && (() => {
-                        const isNearBottom = filteredMessages.length >= 4 && index >= filteredMessages.length - 2;
-                        return (
-                          <div 
-                            ref={msgMenuRef}
-                            onClick={(e) => e.stopPropagation()}
-                            className={`
+                        {/* WhatsApp Context Dropdown Menu */}
+                        {activeMsgMenuId === msg.id && (() => {
+                          const isNearBottom = filteredMessages.length >= 4 && index >= filteredMessages.length - 2;
+                          return (
+                            <div
+                              ref={msgMenuRef}
+                              onClick={(e) => e.stopPropagation()}
+                              className={`
                               absolute z-50 bg-slate-900/95 dark:bg-slate-950 backdrop-blur-md text-slate-200 rounded-xl shadow-2xl border border-slate-700/80 py-1.5 w-48 text-xs font-semibold select-none animate-in fade-in zoom-in-95 max-h-[70vh] overflow-y-auto no-scrollbar
                               ${isMe ? 'right-0' : 'left-0'}
                               ${isNearBottom ? 'bottom-full mb-1 top-auto' : 'top-full mt-1 bottom-auto'}
                             `}
-                          >
-                            {/* Quick reaction bar toggle */}
-                            {showEmojiPickerMsgId === msg.id && (
-                              <div className="flex items-center justify-around p-2 border-b border-slate-800 relative">
-                                {quickEmojis.map((emoji) => (
+                            >
+                              {/* Quick reaction bar toggle */}
+                              {showEmojiPickerMsgId === msg.id && (
+                                <div className="flex items-center justify-around p-2 border-b border-slate-800 relative">
+                                  {quickEmojis.map((emoji) => (
+                                    <button
+                                      key={emoji}
+                                      type="button"
+                                      onClick={() => {
+                                        addReaction(msg.id, emoji);
+                                        setShowEmojiPickerMsgId(null);
+                                        setShowFullEmojiPickerMsgId(null);
+                                        setActiveMsgMenuId(null);
+                                      }}
+                                      className="hover:scale-125 transition-transform text-sm cursor-pointer"
+                                    >
+                                      {emoji}
+                                    </button>
+                                  ))}
                                   <button
-                                    key={emoji}
                                     type="button"
-                                    onClick={() => {
-                                      addReaction(msg.id, emoji);
-                                      setShowEmojiPickerMsgId(null);
-                                      setShowFullEmojiPickerMsgId(null);
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setShowFullEmojiPickerMsgId(showFullEmojiPickerMsgId === msg.id ? null : msg.id);
                                       setActiveMsgMenuId(null);
                                     }}
-                                    className="hover:scale-125 transition-transform text-sm cursor-pointer"
+                                    className={`p-1 rounded-full text-slate-300 hover:text-white transition-colors cursor-pointer flex items-center justify-center shrink-0 ${showFullEmojiPickerMsgId === msg.id ? 'bg-indigo-600 text-white' : 'bg-slate-800 hover:bg-slate-700'}`}
+                                    title="All Emojis"
                                   >
-                                    {emoji}
+                                    <Plus className="h-3.5 w-3.5" />
                                   </button>
-                                ))}
+                                </div>
+                              )}
+
+                              <button
+                                onClick={() => {
+                                  setReplyMessage(msg);
+                                  setActiveMsgMenuId(null);
+                                }}
+                                className="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-slate-800 transition-colors text-left"
+                              >
+                                <Reply className="h-4 w-4 text-slate-400" />
+                                Reply
+                              </button>
+
+                              {msg.text && (
                                 <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setShowFullEmojiPickerMsgId(showFullEmojiPickerMsgId === msg.id ? null : msg.id);
+                                  onClick={() => {
+                                    handleCopyMsgText(msg.text);
                                     setActiveMsgMenuId(null);
                                   }}
-                                  className={`p-1 rounded-full text-slate-300 hover:text-white transition-colors cursor-pointer flex items-center justify-center shrink-0 ${showFullEmojiPickerMsgId === msg.id ? 'bg-indigo-600 text-white' : 'bg-slate-800 hover:bg-slate-700'}`}
-                                  title="All Emojis"
+                                  className="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-slate-800 transition-colors text-left"
                                 >
-                                  <Plus className="h-3.5 w-3.5" />
+                                  <Copy className="h-4 w-4 text-slate-400" />
+                                  Copy
                                 </button>
-                              </div>
-                            )}
+                              )}
 
-                          <button
-                            onClick={() => {
-                              setReplyMessage(msg);
-                              setActiveMsgMenuId(null);
-                            }}
-                            className="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-slate-800 transition-colors text-left"
-                          >
-                            <Reply className="h-4 w-4 text-slate-400" />
-                            Reply
-                          </button>
+                              <button
+                                onClick={() => {
+                                  setShowEmojiPickerMsgId(showEmojiPickerMsgId === msg.id ? null : msg.id);
+                                  setShowFullEmojiPickerMsgId(null);
+                                }}
+                                className="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-slate-800 transition-colors text-left"
+                              >
+                                <Smile className="h-4 w-4 text-slate-400" />
+                                React
+                              </button>
 
-                          {msg.text && (
-                            <button
-                              onClick={() => {
-                                handleCopyMsgText(msg.text);
-                                setActiveMsgMenuId(null);
-                              }}
-                              className="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-slate-800 transition-colors text-left"
-                            >
-                              <Copy className="h-4 w-4 text-slate-400" />
-                              Copy
-                            </button>
-                          )}
+                              <button
+                                onClick={() => {
+                                  setForwardMessage(msg);
+                                  setActiveMsgMenuId(null);
+                                }}
+                                className="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-slate-800 transition-colors text-left"
+                              >
+                                <Forward className="h-4 w-4 text-slate-400" />
+                                Forward
+                              </button>
 
-                          <button
-                            onClick={() => {
-                              setShowEmojiPickerMsgId(showEmojiPickerMsgId === msg.id ? null : msg.id);
-                              setShowFullEmojiPickerMsgId(null);
-                            }}
-                            className="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-slate-800 transition-colors text-left"
-                          >
-                            <Smile className="h-4 w-4 text-slate-400" />
-                            React
-                          </button>
+                              <button
+                                onClick={() => {
+                                  handleTogglePinMessage(msg);
+                                  setActiveMsgMenuId(null);
+                                }}
+                                className="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-slate-800 transition-colors text-left"
+                              >
+                                <Pin className="h-4 w-4 text-slate-400" />
+                                {(activeChat?.pinnedMessageIds || []).some(p => p.id === msg.id) ? "Unpin" : "Pin"}
+                              </button>
 
-                          <button
-                            onClick={() => {
-                              setForwardMessage(msg);
-                              setActiveMsgMenuId(null);
-                            }}
-                            className="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-slate-800 transition-colors text-left"
-                          >
-                            <Forward className="h-4 w-4 text-slate-400" />
-                            Forward
-                          </button>
+                              <button
+                                onClick={() => {
+                                  handleToggleStarMsg(msg.id);
+                                  setActiveMsgMenuId(null);
+                                }}
+                                className="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-slate-800 transition-colors text-left"
+                              >
+                                <Star className={`h-4 w-4 ${starredMsgIds.includes(msg.id) ? 'text-amber-400 fill-amber-400' : 'text-slate-400'}`} />
+                                {starredMsgIds.includes(msg.id) ? "Unstar" : "Star"}
+                              </button>
 
-                          <button
-                            onClick={() => {
-                              handleTogglePinMessage(msg);
-                              setActiveMsgMenuId(null);
-                            }}
-                            className="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-slate-800 transition-colors text-left"
-                          >
-                            <Pin className="h-4 w-4 text-slate-400" />
-                            {(activeChat?.pinnedMessageIds || []).some(p => p.id === msg.id) ? "Unpin" : "Pin"}
-                          </button>
+                              {/* ONLY show Report for messages received from OTHER users (!isMe) */}
+                              {!isMe && (
+                                <button
+                                  onClick={() => {
+                                    setActiveMsgMenuId(null);
+                                    const targetUser = getSenderProfile(msg.senderId);
+                                    if (typeof reportUser === 'function' && targetUser) {
+                                      reportUser(
+                                        targetUser.id || targetUser._id,
+                                        msg.text || '[media attachment]',
+                                        'message'
+                                      );
+                                    }
+                                    showToast("Report Submitted", "Message reported to administrator for review.", "warning");
+                                  }}
+                                  className="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-slate-800 transition-colors text-left text-amber-400"
+                                >
+                                  <AlertTriangle className="h-4 w-4" />
+                                  Report
+                                </button>
+                              )}
 
-                          <button
-                            onClick={() => {
-                              handleToggleStarMsg(msg.id);
-                              setActiveMsgMenuId(null);
-                            }}
-                            className="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-slate-800 transition-colors text-left"
-                          >
-                            <Star className={`h-4 w-4 ${starredMsgIds.includes(msg.id) ? 'text-amber-400 fill-amber-400' : 'text-slate-400'}`} />
-                            {starredMsgIds.includes(msg.id) ? "Unstar" : "Star"}
-                          </button>
+                              {/* Message Info for group admins / sender */}
+                              {isMe && !isDirect && (
+                                <button
+                                  onClick={() => {
+                                    setMsgInfoTarget(msg);
+                                    setActiveMsgMenuId(null);
+                                  }}
+                                  className="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-slate-800 transition-colors text-left text-indigo-400"
+                                >
+                                  <Info className="h-4 w-4" />
+                                  Message Info
+                                </button>
+                              )}
 
-                          {/* ONLY show Report for messages received from OTHER users (!isMe) */}
-                          {!isMe && (
-                            <button
-                              onClick={() => {
-                                setActiveMsgMenuId(null);
-                                const targetUser = getSenderProfile(msg.senderId);
-                                if (typeof reportUser === 'function' && targetUser) {
-                                  reportUser(
-                                    targetUser.id || targetUser._id,
-                                    msg.text || '[media attachment]',
-                                    'message'
-                                  );
-                                }
-                                showToast("Report Submitted", "Message reported to administrator for review.", "warning");
-                              }}
-                              className="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-slate-800 transition-colors text-left text-amber-400"
-                            >
-                              <AlertTriangle className="h-4 w-4" />
-                              Report
-                            </button>
-                          )}
+                              {isMe && ((Date.now() - new Date(msg.timestamp).getTime()) <= 24 * 60 * 60 * 1000) && (
+                                <button
+                                  onClick={() => {
+                                    setEditingMessage(msg);
+                                    setInputText(msg.text);
+                                    setActiveMsgMenuId(null);
+                                  }}
+                                  className="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-slate-800 transition-colors text-left"
+                                >
+                                  <Edit2 className="h-4 w-4 text-slate-400" />
+                                  Edit
+                                </button>
+                              )}
 
-                          {/* Message Info for group admins / sender */}
-                          {isMe && !isDirect && (
-                            <button
-                              onClick={() => {
-                                setMsgInfoTarget(msg);
-                                setActiveMsgMenuId(null);
-                              }}
-                              className="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-slate-800 transition-colors text-left text-indigo-400"
-                            >
-                              <Info className="h-4 w-4" />
-                              Message Info
-                            </button>
-                          )}
+                              <div className="my-1 border-t border-slate-800" />
 
-                          {isMe && ((Date.now() - new Date(msg.timestamp).getTime()) <= 24 * 60 * 60 * 1000) && (
-                            <button
-                              onClick={() => {
-                                setEditingMessage(msg);
-                                setInputText(msg.text);
-                                setActiveMsgMenuId(null);
-                              }}
-                              className="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-slate-800 transition-colors text-left"
-                            >
-                              <Edit2 className="h-4 w-4 text-slate-400" />
-                              Edit
-                            </button>
-                          )}
+                              <button
+                                onClick={() => {
+                                  setTargetDeleteMessage(msg);
+                                  setDeleteModalOpen(true);
+                                  setActiveMsgMenuId(null);
+                                }}
+                                className="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-slate-800 transition-colors text-left text-rose-400 font-bold"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                                Delete
+                              </button>
+                            </div>
+                          );
+                        })()}
 
-                          <div className="my-1 border-t border-slate-800" />
-
-                          <button
-                            onClick={() => {
-                              setTargetDeleteMessage(msg);
-                              setDeleteModalOpen(true);
-                              setActiveMsgMenuId(null);
-                            }}
-                            className="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-slate-800 transition-colors text-left text-rose-400 font-bold"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                            Delete
-                          </button>
-                        </div>
-                      );
-                    })()}
-
-                    {/* Bubble background classes */}
-                    <div className={`
+                        {/* Bubble background classes */}
+                        <div className={`
                       pl-3.5 pr-8 py-2 rounded-2xl text-xs sm:text-xs leading-relaxed max-w-full text-left shadow-[0_1px_0.5px_rgba(11,20,26,0.13)] relative
-                      ${isMe 
-                        ? 'bg-[#d9fdd3] text-[#111b21] rounded-tr-xs' 
-                        : 'bg-white text-[#111b21] rounded-tl-xs border border-slate-200/50'
-                      }
+                      ${isMe
+                            ? 'bg-[#d9fdd3] text-[#111b21] rounded-tr-xs'
+                            : 'bg-white text-[#111b21] rounded-tl-xs border border-slate-200/50'
+                          }
                       ${msg.isDeleted ? 'italic text-slate-400 bg-slate-50 border-dashed pr-3.5' : ''}
                       ${msg.emojiReactions && msg.emojiReactions.length > 0 ? 'pb-3.5 mb-1' : ''}
                     `}>
-                      {/* Forwarded indicator */}
-                      {msg.isForwarded && (
-                        <div className={`flex items-center gap-1 mb-1 text-[9px] font-bold tracking-wide uppercase italic ${isMe ? 'text-indigo-300' : 'text-slate-400'}`}>
-                          <Forward className="h-2.5 w-2.5" />
-                          <span>Forwarded</span>
-                        </div>
-                      )}
-                      
-                      {/* Reply preview row */}
-                      {replyCtx && (
-                        <div className="mb-2 p-2 rounded-lg bg-black/5 border-l-[3px] border-indigo-500 text-[10px] text-slate-700 truncate max-w-full">
-                          <span className="font-bold block text-indigo-500">
-                            {replyCtx.senderId === 'user_me' ? 'You' : getSenderProfile(replyCtx.senderId).name}
-                          </span>
-                          {replyCtx.text || 'File Attachment'}
-                        </div>
-                      )}
-
-                      {/* Text content */}
-                      {msg.text && <p className="whitespace-pre-wrap">{renderTextWithLinks(msg.text)}</p>}
-
-                      {/* Image attachment rendering */}
-                      {msg.type === 'image' && msg.attachmentUrl && (
-                        <div className="relative mt-1 max-w-full sm:max-w-[240px] overflow-hidden rounded-lg cursor-zoom-in border-0">
-                          <img
-                            src={msg.attachmentUrl}
-                            alt={msg.attachmentName || "Attachment"}
-                            className="object-cover h-40 w-full hover:scale-105 transition-transform duration-300"
-                            onClick={() => setLightboxImage(msg.attachmentUrl)}
-                          />
-                        </div>
-                      )}
-
-                      {/* PDF / Document Attachment card */}
-                      {msg.type === 'file' && (
-                        <a
-                          href={msg.attachmentUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          download={msg.attachmentName}
-                          onClick={(e) => handleDownloadFile(e, msg.attachmentUrl, msg.attachmentName)}
-                          className="flex items-center justify-between gap-3 p-3 mt-1.5 rounded-xl border-0 bg-black/5 hover:bg-black/10 transition-colors duration-200 cursor-pointer max-w-full sm:max-w-[260px] group/file text-slate-800 decoration-transparent"
-                        >
-                          <div className="flex items-center gap-3 min-w-0">
-                            <div className="h-10 w-10 rounded-lg bg-red-500/10 text-red-500 flex items-center justify-center shrink-0 group-hover/file:bg-red-500/20 transition-colors">
-                              <FileText className="h-5.5 w-5.5" />
+                          {/* Forwarded indicator */}
+                          {msg.isForwarded && (
+                            <div className={`flex items-center gap-1 mb-1 text-[9px] font-bold tracking-wide uppercase italic ${isMe ? 'text-indigo-300' : 'text-slate-400'}`}>
+                              <Forward className="h-2.5 w-2.5" />
+                              <span>Forwarded</span>
                             </div>
-                            <div className="min-w-0 text-left">
-                              <h5 className="text-xs font-bold truncate text-slate-800 group-hover/file:text-indigo-600 transition-colors">
-                                {msg.attachmentName}
-                              </h5>
-                              <p className="text-[10px] text-slate-450 font-semibold mt-0.5">
-                                {msg.attachmentSize}
-                              </p>
+                          )}
+
+                          {/* Reply preview row */}
+                          {replyCtx && (
+                            <div className="mb-2 p-2 rounded-lg bg-black/5 border-l-[3px] border-indigo-500 text-[10px] text-slate-700 truncate max-w-full">
+                              <span className="font-bold block text-indigo-500">
+                                {replyCtx.senderId === 'user_me' ? 'You' : getSenderProfile(replyCtx.senderId).name}
+                              </span>
+                              {replyCtx.text || 'File Attachment'}
                             </div>
-                          </div>
-                          <div className="p-1.5 rounded-lg text-slate-400 hover:text-slate-650 hover:bg-slate-200/50 shrink-0 transition-colors">
-                            <Download className="h-4 w-4" />
-                          </div>
-                        </a>
-                      )}
+                          )}
 
-                      {/* Voice waveform player */}
-                      {msg.type === 'audio' && (
-                        <SimulatedVoicePlayer duration={msg.attachmentDuration} url={msg.attachmentUrl} />
-                      )}
+                          {/* Text content */}
+                          {msg.text && <p className="whitespace-pre-wrap">{renderTextWithLinks(msg.text)}</p>}
 
-                      {/* Voice Call History Card */}
-                      {msg.type === 'call' && (
-                        <div className="flex items-center gap-3 p-3 mt-1.5 rounded-xl border-0 bg-black/5 text-slate-800 max-w-[245px]">
-                          <div className={`h-9 w-9 rounded-lg flex items-center justify-center shrink-0 ${
-                            msg.text.includes("Missed") 
-                              ? "bg-rose-500/10 text-rose-500" 
-                              : "bg-emerald-500/10 text-emerald-500"
-                          }`}>
-                            <Phone className="h-4.5 w-4.5" />
-                          </div>
-                          <div className="min-w-0 text-left">
-                            <h5 className="text-xs font-bold text-slate-800">
-                              {msg.text}
-                            </h5>
-                            <p className="text-[10px] text-slate-455 font-semibold mt-0.5">
-                              {msg.attachmentDuration || "0:00"}
-                            </p>
-                          </div>
+                          {/* Image attachment rendering */}
+                          {msg.type === 'image' && msg.attachmentUrl && (
+                            <div className="relative mt-1 max-w-full sm:max-w-[240px] overflow-hidden rounded-lg cursor-zoom-in border-0">
+                              <img
+                                src={msg.attachmentUrl}
+                                alt={msg.attachmentName || "Attachment"}
+                                className="object-cover h-40 w-full hover:scale-105 transition-transform duration-300"
+                                onClick={() => setLightboxImage(msg.attachmentUrl)}
+                              />
+                            </div>
+                          )}
+
+                          {/* PDF / Document Attachment card */}
+                          {msg.type === 'file' && (
+                            <a
+                              href={msg.attachmentUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              download={msg.attachmentName}
+                              onClick={(e) => handleDownloadFile(e, msg.attachmentUrl, msg.attachmentName)}
+                              className="flex items-center justify-between gap-3 p-3 mt-1.5 rounded-xl border-0 bg-black/5 hover:bg-black/10 transition-colors duration-200 cursor-pointer max-w-full sm:max-w-[260px] group/file text-slate-800 decoration-transparent"
+                            >
+                              <div className="flex items-center gap-3 min-w-0">
+                                <div className="h-10 w-10 rounded-lg bg-red-500/10 text-red-500 flex items-center justify-center shrink-0 group-hover/file:bg-red-500/20 transition-colors">
+                                  <FileText className="h-5.5 w-5.5" />
+                                </div>
+                                <div className="min-w-0 text-left">
+                                  <h5 className="text-xs font-bold truncate text-slate-800 group-hover/file:text-indigo-600 transition-colors">
+                                    {msg.attachmentName}
+                                  </h5>
+                                  <p className="text-[10px] text-slate-450 font-semibold mt-0.5">
+                                    {msg.attachmentSize}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="p-1.5 rounded-lg text-slate-400 hover:text-slate-650 hover:bg-slate-200/50 shrink-0 transition-colors">
+                                <Download className="h-4 w-4" />
+                              </div>
+                            </a>
+                          )}
+
+                          {/* Voice waveform player */}
+                          {msg.type === 'audio' && (
+                            <SimulatedVoicePlayer duration={msg.attachmentDuration} url={msg.attachmentUrl} />
+                          )}
+
+                          {/* Voice Call History Card */}
+                          {msg.type === 'call' && (
+                            <div className="flex items-center gap-3 p-3 mt-1.5 rounded-xl border-0 bg-black/5 text-slate-800 max-w-[245px]">
+                              <div className={`h-9 w-9 rounded-lg flex items-center justify-center shrink-0 ${msg.text.includes("Missed")
+                                  ? "bg-rose-500/10 text-rose-500"
+                                  : "bg-emerald-500/10 text-emerald-500"
+                                }`}>
+                                <Phone className="h-4.5 w-4.5" />
+                              </div>
+                              <div className="min-w-0 text-left">
+                                <h5 className="text-xs font-bold text-slate-800">
+                                  {msg.text}
+                                </h5>
+                                <p className="text-[10px] text-slate-455 font-semibold mt-0.5">
+                                  {msg.attachmentDuration || "0:00"}
+                                </p>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Floating Emoji Reaction with NO background */}
+                          {msg.emojiReactions && msg.emojiReactions.length > 0 && (
+                            <div
+                              className="absolute -bottom-2.5 left-1.5 z-10 flex items-center gap-0.5 bg-transparent border-0 shadow-none select-none cursor-pointer hover:scale-115 transition-transform duration-200"
+                            >
+                              {msg.emojiReactions.map((r, i) => {
+                                const userHasReacted = r.userIds.includes('user_me');
+                                return (
+                                  <button
+                                    key={i}
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      addReaction(msg.id, r.emoji);
+                                    }}
+                                    className={`flex items-center justify-center bg-transparent border-0 leading-none transition-transform cursor-pointer ${userHasReacted ? 'scale-110' : 'hover:scale-110'}`}
+                                    title={`Reacted with ${r.emoji}`}
+                                  >
+                                    <span className="text-xs sm:text-[13px] leading-none shrink-0 drop-shadow-xs">{r.emoji}</span>
+                                    {r.count > 1 && (
+                                      <span className="text-[8.5px] font-black text-slate-700 dark:text-slate-200 ml-0.5">
+                                        {r.count}
+                                      </span>
+                                    )}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
                         </div>
-                      )}
 
-                      {/* Floating Emoji Reaction with NO background */}
-                      {msg.emojiReactions && msg.emojiReactions.length > 0 && (
-                        <div 
-                          className="absolute -bottom-2.5 left-1.5 z-10 flex items-center gap-0.5 bg-transparent border-0 shadow-none select-none cursor-pointer hover:scale-115 transition-transform duration-200"
-                        >
-                          {msg.emojiReactions.map((r, i) => {
-                            const userHasReacted = r.userIds.includes('user_me');
-                            return (
-                              <button
-                                key={i}
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  addReaction(msg.id, r.emoji);
-                                }}
-                                className={`flex items-center justify-center bg-transparent border-0 leading-none transition-transform cursor-pointer ${userHasReacted ? 'scale-110' : 'hover:scale-110'}`}
-                                title={`Reacted with ${r.emoji}`}
-                              >
-                                <span className="text-xs sm:text-[13px] leading-none shrink-0 drop-shadow-xs">{r.emoji}</span>
-                                {r.count > 1 && (
-                                  <span className="text-[8.5px] font-black text-slate-700 dark:text-slate-200 ml-0.5">
-                                    {r.count}
-                                  </span>
-                                )}
-                              </button>
-                            );
-                          })}
+                        {/* Timestamp & read receipt info */}
+                        <div className={`flex items-center gap-1.5 mt-1 text-[9px] text-slate-400 font-medium ${isMe ? 'justify-end' : 'justify-start'}`}>
+                          {starredMsgIds.includes(msg.id) && (
+                            <Star className="h-3 w-3 text-amber-400 fill-amber-400 shrink-0" />
+                          )}
+                          <span>{time}</span>
+                          {msg.edited && <span className="text-slate-400/70 select-none">(edited)</span>}
+                          {isMe && (
+                            <>
+                              {msg.status === 'sent' && (
+                                <Check className="h-3 w-3 text-slate-400" />
+                              )}
+                              {msg.status === 'delivered' && (
+                                <CheckCheck className="h-3 w-3 text-slate-400" />
+                              )}
+                              {msg.status === 'seen' && (
+                                <CheckCheck className="h-3 w-3 text-sky-500" />
+                              )}
+                            </>
+                          )}
                         </div>
-                      )}
-                    </div>
-
-                    {/* Timestamp & read receipt info */}
-                    <div className={`flex items-center gap-1.5 mt-1 text-[9px] text-slate-400 font-medium ${isMe ? 'justify-end' : 'justify-start'}`}>
-                      {starredMsgIds.includes(msg.id) && (
-                        <Star className="h-3 w-3 text-amber-400 fill-amber-400 shrink-0" />
-                      )}
-                      <span>{time}</span>
-                      {msg.edited && <span className="text-slate-400/70 select-none">(edited)</span>}
-                      {isMe && (
-                        <>
-                          {msg.status === 'sent' && (
-                            <Check className="h-3 w-3 text-slate-400" />
-                          )}
-                          {msg.status === 'delivered' && (
-                            <CheckCheck className="h-3 w-3 text-slate-400" />
-                          )}
-                          {msg.status === 'seen' && (
-                            <CheckCheck className="h-3 w-3 text-sky-500" />
-                          )}
-                        </>
-                      )}
+                      </div>
                     </div>
                   </div>
+                </React.Fragment>
+              );
+            })
+          )}
+
+          {/* Typing indicator bubble */}
+          {typingUsers[activeChatId] && typingUsers[activeChatId].length > 0 && (
+            <div className="flex gap-3 mr-auto items-start max-w-[70%]">
+              <Avatar
+                src={recipient?.avatar}
+                name={chatTitle}
+                size="sm"
+                color={recipient?.avatarColor}
+              />
+              <div className="px-4 py-3 rounded-2xl rounded-tl-xs bg-white border border-slate-250 shadow-[0_8px_24px_rgba(15,23,42,0.04)]">
+                <div className="flex items-center gap-1.5">
+                  <span className="h-1.5 w-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                  <span className="h-1.5 w-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                  <span className="h-1.5 w-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                 </div>
               </div>
-            </React.Fragment>
-          );
-        })
-        )}
-
-        {/* Typing indicator bubble */}
-        {typingUsers[activeChatId] && typingUsers[activeChatId].length > 0 && (
-          <div className="flex gap-3 mr-auto items-start max-w-[70%]">
-            <Avatar 
-              src={recipient?.avatar} 
-              name={chatTitle} 
-              size="sm" 
-              color={recipient?.avatarColor}
-            />
-            <div className="px-4 py-3 rounded-2xl rounded-tl-xs bg-white border border-slate-250 shadow-[0_8px_24px_rgba(15,23,42,0.04)]">
-              <div className="flex items-center gap-1.5">
-                <span className="h-1.5 w-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                <span className="h-1.5 w-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                <span className="h-1.5 w-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        <div ref={messagesEndRef} />
+          <div ref={messagesEndRef} />
+        </div>
       </div>
-    </div>
 
       {/* 3. Bottom Text Input bar area */}
       <div className="border-t border-slate-200/80 bg-white/86 backdrop-blur-xl shrink-0">
         <div className="max-w-3xl md:max-w-4xl mx-auto p-3 flex flex-col gap-2 w-full">
-          
+
           {/* Reply preview bar active */}
           {replyMessage && (
             <div className="bg-slate-50 px-3 py-2 rounded-xl flex items-center justify-between border border-slate-200 text-xs">
@@ -1525,14 +1518,14 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen, onBack }) =
                 </span>
               </div>
               <div className="flex gap-2">
-                <button 
-                  onClick={cancelRecording} 
+                <button
+                  onClick={cancelRecording}
                   className="px-3.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 text-xs text-slate-500 hover:bg-slate-100 hover:text-slate-700 font-bold cursor-pointer"
                 >
                   Discard
                 </button>
-                <button 
-                  onClick={stopRecording} 
+                <button
+                  onClick={stopRecording}
                   className="px-3.5 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold cursor-pointer transition-colors shadow-xs"
                 >
                   Stop & Send
@@ -1540,7 +1533,7 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen, onBack }) =
               </div>
             </div>
           ) : (
-            <div className="p-3 bg-[#f0f2f5] border-t border-[#e9edef] select-none w-full">
+            <div className="p-3 bg-transparent border-0 select-none w-full">
               <input
                 ref={imageInputRef}
                 type="file"
@@ -1639,7 +1632,7 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen, onBack }) =
                 {/* 2. Emoji menu trigger */}
                 <div className="relative shrink-0" ref={emojiPickerRef}>
                   <Tooltip content="Emoji menu">
-                    <button 
+                    <button
                       type="button"
                       onClick={() => setShowEmojiPicker(!showEmojiPicker)}
                       className="p-1.5 rounded-full text-[#54656f] hover:text-[#111b21] hover:bg-slate-100 cursor-pointer transition-colors flex items-center justify-center h-8 w-8"
@@ -1749,14 +1742,14 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen, onBack }) =
       >
         <div className="text-left space-y-4 max-h-[60vh] flex flex-col select-none">
           <p className="text-xs text-slate-500 font-medium">Select a conversation to forward this message to:</p>
-          
+
           <div className="flex-1 overflow-y-auto space-y-2 pr-1 no-scrollbar min-h-[200px]">
             {chats.map(chat => {
               const isDirect = chat.type === 'direct';
               let name = "Unknown Chat";
               let avatar = "";
               let avatarColor = "from-indigo-650 to-indigo-650";
-              
+
               if (isDirect) {
                 const recipientId = chat.participants.find(p => p !== 'user_me');
                 const recipient = allUsers.find(u => u.id === recipientId);
@@ -1775,28 +1768,28 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen, onBack }) =
               }
 
               return (
-                <div 
-                  key={chat.id} 
+                <div
+                  key={chat.id}
                   className="flex items-center justify-between p-2.5 rounded-xl border border-slate-100 hover:bg-slate-50 transition-colors"
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <Avatar src={avatar} name={name} size="sm" color={avatarColor} />
                     <span className="text-xs font-bold text-slate-900 truncate">{name}</span>
                   </div>
-                  <Button 
-                    size="sm" 
+                  <Button
+                    size="sm"
                     onClick={() => {
                       sendMessage(
-                        chat.id, 
-                        forwardMessage.text, 
-                        forwardMessage.type, 
+                        chat.id,
+                        forwardMessage.text,
+                        forwardMessage.type,
                         {
                           attachmentUrl: forwardMessage.attachmentUrl,
                           attachmentName: forwardMessage.attachmentName,
                           attachmentSize: forwardMessage.attachmentSize,
                           attachmentDuration: forwardMessage.attachmentDuration
-                        }, 
-                        null, 
+                        },
+                        null,
                         true
                       );
                       showToast("Message Forwarded", `Successfully forwarded to ${name}.`, "success");

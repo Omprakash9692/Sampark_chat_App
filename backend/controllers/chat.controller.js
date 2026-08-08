@@ -9,34 +9,54 @@ import { uploadToCloudinary } from "../config/cloudinary.js";
 
 const formatConversation = (conv, currentUserId, unreadCount = 0) => {
   const isDirect = conv.type === "direct";
-  
+
   // Map participants: currentUserId is serialized as "user_me"
   const participants = (conv.participants || []).map(p => {
     const id = p._id ? p._id.toString() : p.toString();
     return id === currentUserId.toString() ? "user_me" : id;
   });
 
+  // Check if member joined after last message was sent in group chats
+  let joinedAt = null;
+  if (conv.type === "group" && conv.memberJoinedAt && currentUserId) {
+    const userKey = currentUserId.toString();
+    if (typeof conv.memberJoinedAt.get === 'function') {
+      joinedAt = conv.memberJoinedAt.get(userKey);
+    } else if (typeof conv.memberJoinedAt === 'object') {
+      joinedAt = conv.memberJoinedAt[userKey];
+    }
+  }
+
   const lastMsgObj = conv.lastMessage;
   let lastMsgFormatted = null;
+  let lastMsgIdStr = null;
+  let conversationTime = conv.createdAt;
+
   if (lastMsgObj && typeof lastMsgObj === 'object' && lastMsgObj._id) {
-    const senderIdStr = lastMsgObj.sender ? (lastMsgObj.sender._id ? lastMsgObj.sender._id.toString() : lastMsgObj.sender.toString()) : "";
-    lastMsgFormatted = {
-      id: lastMsgObj._id.toString(),
-      chatId: conv._id.toString(),
-      senderId: senderIdStr === currentUserId.toString() ? "user_me" : senderIdStr,
-      text: lastMsgObj.text || "",
-      type: lastMsgObj.type || "text",
-      timestamp: lastMsgObj.createdAt || conv.createdAt,
-      status: lastMsgObj.status || "sent"
-    };
+    const msgCreatedAt = lastMsgObj.createdAt ? new Date(lastMsgObj.createdAt).getTime() : 0;
+    const joinedAtTime = joinedAt ? new Date(joinedAt).getTime() : 0;
+
+    // Only format last message for this user if it was sent AFTER or AT the time the user joined
+    if (!joinedAtTime || msgCreatedAt >= joinedAtTime) {
+      const senderIdStr = lastMsgObj.sender ? (lastMsgObj.sender._id ? lastMsgObj.sender._id.toString() : lastMsgObj.sender.toString()) : "";
+      lastMsgFormatted = {
+        id: lastMsgObj._id.toString(),
+        chatId: conv._id.toString(),
+        senderId: senderIdStr === currentUserId.toString() ? "user_me" : senderIdStr,
+        text: lastMsgObj.text || "",
+        type: lastMsgObj.type || "text",
+        timestamp: lastMsgObj.createdAt || conv.createdAt,
+        status: lastMsgObj.status || "sent"
+      };
+      lastMsgIdStr = lastMsgObj._id.toString();
+      conversationTime = lastMsgObj.createdAt;
+    }
   }
 
   const adminIds = (conv.adminIds || []).map(id => {
     const idStr = id._id ? id._id.toString() : id.toString();
     return idStr === currentUserId.toString() ? "user_me" : idStr;
   });
-
-  const lastMsgIdStr = lastMsgObj ? (lastMsgObj._id ? lastMsgObj._id.toString() : lastMsgObj.toString()) : null;
 
   const permissions = {
     sendMessages: conv.permissions?.sendMessages !== false,
@@ -89,7 +109,7 @@ const formatConversation = (conv, currentUserId, unreadCount = 0) => {
     adminIds,
     permissions,
     joinRequests,
-    createdTime: lastMsgObj && lastMsgObj.createdAt ? lastMsgObj.createdAt : conv.createdAt,
+    createdTime: conversationTime,
     lastMessageId: lastMsgIdStr,
     lastMessage: lastMsgFormatted,
     pinnedMessageIds,
@@ -133,29 +153,45 @@ export const getUserChats = asyncHandler(async (req, res) => {
 
   const conversationIds = conversations.map(c => c._id);
 
-  // Compute unread counts for all conversations in a single aggregation query
-  const unreadCounts = await Message.aggregate([
-    {
-      $match: {
-        conversation: { $in: conversationIds },
-        sender: { $ne: userId },
-        status: { $ne: "seen" }
-      }
-    },
-    {
-      $group: {
-        _id: "$conversation",
-        count: { $sum: 1 }
+  // Compute per-conversation unread count and delivered status respecting memberJoinedAt for groups
+  const now = new Date();
+  const unreadMap = {};
+
+  for (const c of conversations) {
+    const cId = c._id;
+    const filter = {
+      conversation: cId,
+      sender: { $ne: userId },
+      "readBy.user": { $ne: userId }
+    };
+
+    if (c.type === "group" && c.memberJoinedAt) {
+      const userKey = userId.toString();
+      const joinedAt = typeof c.memberJoinedAt.get === 'function'
+        ? c.memberJoinedAt.get(userKey)
+        : c.memberJoinedAt[userKey];
+
+      if (joinedAt) {
+        filter.createdAt = { $gte: new Date(joinedAt) };
       }
     }
-  ]);
 
-  const unreadMap = {};
-  unreadCounts.forEach(item => {
-    unreadMap[item._id.toString()] = item.count;
-  });
+    // Automatically mark eligible incoming messages as delivered
+    await Message.updateMany(
+      {
+        ...filter,
+        "deliveredTo.user": { $ne: userId }
+      },
+      {
+        $push: { deliveredTo: { user: userId, deliveredAt: now } }
+      }
+    );
 
-  const formatted = conversations.map(c => 
+    const count = await Message.countDocuments(filter);
+    unreadMap[cId.toString()] = count;
+  }
+
+  const formatted = conversations.map(c =>
     formatConversation(c, userId, unreadMap[c._id.toString()] || 0)
   );
 
@@ -179,22 +215,47 @@ export const getChatMessages = asyncHandler(async (req, res) => {
     throw new ApiError(403, "Access denied to this conversation");
   }
 
-  // Mark all unread incoming messages as seen and record per-user receipt
+  // Mark all unread incoming messages as read for THIS user specifically
   try {
     const now = new Date();
     await Message.updateMany(
-      { 
-        conversation: chatId, 
-        sender: { $ne: userId }, 
+      {
+        conversation: chatId,
+        sender: { $ne: userId },
         blockedFor: { $ne: userId },
         "readBy.user": { $ne: userId }   // avoid duplicate readBy entries
       },
-      { 
-        $set: { status: "seen" },
+      {
         $push: { readBy: { user: userId, readAt: now } },
         $pull: { deliveredTo: { user: userId } }
       }
     );
+
+    // Update message overall status to "seen" when appropriate (DM or when all participants have read)
+    if (conversation.type === "direct") {
+      await Message.updateMany(
+        {
+          conversation: chatId,
+          sender: { $ne: userId }
+        },
+        {
+          $set: { status: "seen" }
+        }
+      );
+    } else if (conversation.type === "group") {
+      const participantCount = conversation.participants ? conversation.participants.length : 1;
+      await Message.updateMany(
+        {
+          conversation: chatId,
+          sender: { $ne: userId },
+          $expr: { $gte: [{ $size: { $ifNull: ["$readBy", []] } }, participantCount] }
+        },
+        {
+          $set: { status: "seen" }
+        }
+      );
+    }
+
     await Conversation.findByIdAndUpdate(chatId, {
       $pull: { unreadFor: userId }
     });
@@ -350,15 +411,15 @@ export const sendMessage = asyncHandler(async (req, res) => {
   let blockedFor = [];
   if (conversation.type === "direct") {
     const recipientId = conversation.participants.find(p => p.toString() !== myId.toString());
-    
+
     let isBlockedRelation = false;
     if (recipientId) {
       const recipient = await User.findById(recipientId);
       const me = await User.findById(myId);
-      
+
       const hasRecipientBlockedMe = recipient && recipient.blockedUsers && recipient.blockedUsers.includes(myId);
       const haveIBlockedRecipient = me && me.blockedUsers && me.blockedUsers.includes(recipientId);
-      
+
       if (hasRecipientBlockedMe || haveIBlockedRecipient) {
         isBlockedRelation = true;
         blockedFor.push(recipientId);
@@ -382,13 +443,18 @@ export const sendMessage = asyncHandler(async (req, res) => {
     const deliveredEntries = [];
     const readEntries = [];
 
+    const myIdStr = myId._id ? myId._id.toString() : myId.toString();
     conversation.participants.forEach(p => {
-      const pIdStr = p.toString();
-      if (pIdStr !== myId.toString() && userSockets && userSockets.get(pIdStr)?.size > 0) {
-        if (userActiveChats && userActiveChats.get(pIdStr) === chatId.toString()) {
-          readEntries.push({ user: p, readAt: now });
-        } else {
-          deliveredEntries.push({ user: p, deliveredAt: now });
+      const pIdStr = p._id ? p._id.toString() : p.toString();
+      if (pIdStr !== myIdStr) {
+        const userSocketSet = userSockets ? userSockets.get(pIdStr) : null;
+        const isOnline = userSocketSet && userSocketSet.size > 0;
+        if (isOnline) {
+          if (userActiveChats && userActiveChats.get(pIdStr) === chatId.toString()) {
+            readEntries.push({ user: p, readAt: now });
+          } else {
+            deliveredEntries.push({ user: p, deliveredAt: now });
+          }
         }
       }
     });
@@ -639,8 +705,7 @@ export const editMessage = asyncHandler(async (req, res) => {
   // ⏱️ Check if message was sent within 24 hours (24 * 60 * 60 * 1000 ms)
   const messageAgeMs = Date.now() - new Date(message.createdAt).getTime();
   const maxEditTimeMs = 24 * 60 * 60 * 1000;
-  if(messageAgeMs > maxEditTimeMs)
-  {
+  if (messageAgeMs > maxEditTimeMs) {
     throw new ApiError(400, "Message can only be edited within 24 hours of being sent.");
   }
 
@@ -748,7 +813,7 @@ export const uploadAttachment = asyncHandler(async (req, res) => {
 
     // Clean up temp file if uploaded to Cloudinary
     if (uploadedToCloudinary && fs.existsSync(req.file.path)) {
-      try { fs.unlinkSync(req.file.path); } catch (err) {}
+      try { fs.unlinkSync(req.file.path); } catch (err) { }
     }
 
     return res.status(200).json(
@@ -761,7 +826,7 @@ export const uploadAttachment = asyncHandler(async (req, res) => {
   } catch (error) {
     console.error("Upload error:", error);
     if (req.file && req.file.path && fs.existsSync(req.file.path)) {
-      try { fs.unlinkSync(req.file.path); } catch (e) {}
+      try { fs.unlinkSync(req.file.path); } catch (e) { }
     }
     throw new ApiError(500, `Failed to upload file: ${error.message}`);
   }
@@ -790,8 +855,17 @@ export const getMessageInfo = asyncHandler(async (req, res) => {
   const limitNum = parseInt(limit, 10);
   const skip = (pageNum - 1) * limitNum;
 
+  const readUserIds = new Set(
+    (message.readBy || []).map(r => r.user?._id ? r.user._id.toString() : (r.user?.id || r.user?.toString()))
+  );
+
+  const unreadDeliveredTo = (message.deliveredTo || []).filter(d => {
+    const dUserId = d.user?._id ? d.user._id.toString() : (d.user?.id || d.user?.toString());
+    return dUserId && !readUserIds.has(dUserId);
+  });
+
   const totalRead = message.readBy.length;
-  const totalDelivered = message.deliveredTo.length;
+  const totalDelivered = unreadDeliveredTo.length;
 
   const mapUser = (u) => {
     if (!u) return { id: "", name: "Unknown Member", email: "", avatar: "", phone: "" };
@@ -815,7 +889,7 @@ export const getMessageInfo = asyncHandler(async (req, res) => {
     time: r.readAt
   }));
 
-  const deliveredToPage = message.deliveredTo.slice(skip, skip + limitNum).map(d => ({
+  const deliveredToPage = unreadDeliveredTo.slice(skip, skip + limitNum).map(d => ({
     user: mapUser(d.user),
     time: d.deliveredAt
   }));
@@ -832,27 +906,27 @@ export const getMessageInfo = asyncHandler(async (req, res) => {
   );
 });
 
-export const makeGroupAdmin = asyncHandler(async(req,res)=>{
-  const {chatId} = req.params;
-  const {targetUserId} = req.body;
+export const makeGroupAdmin = asyncHandler(async (req, res) => {
+  const { chatId } = req.params;
+  const { targetUserId } = req.body;
   const myId = req.user._id;
 
-  if(!targetUserId){
-    throw new ApiError(400,"Target user id is required");
+  if (!targetUserId) {
+    throw new ApiError(400, "Target user id is required");
   }
 
   const conversation = await Conversation.findOne({
     _id: chatId,
-    type:"group",
-    participants:myId
+    type: "group",
+    participants: myId
   });
 
-  if(!conversation){
-    throw new ApiError(404,"Group chat not found");
+  if (!conversation) {
+    throw new ApiError(404, "Group chat not found");
   }
   const isCurrentAdmin = conversation.adminIds.some(id => id.toString() === myId.toString());
-  if(!isCurrentAdmin){
-    throw new ApiError(403,"Only group admins can assign new admins");
+  if (!isCurrentAdmin) {
+    throw new ApiError(403, "Only group admins can assign new admins");
   }
   const alreadyAdmin = conversation.adminIds.some(
     id => id.toString() === targetUserId.toString()
@@ -919,37 +993,37 @@ export const dismissGroupAdmin = asyncHandler(async (req, res) => {
   );
 });
 
-export const removeFromGroup = asyncHandler(async(req,res)=>{
-  const {chatId} = req.params;
-  const {targetUserId} = req.body;
+export const removeFromGroup = asyncHandler(async (req, res) => {
+  const { chatId } = req.params;
+  const { targetUserId } = req.body;
   const myId = req.user._id;
 
-  if(!targetUserId){
+  if (!targetUserId) {
     throw new ApiError(400, "Target user ID is required");
   }
 
   const conversation = await Conversation.findOne({
     _id: chatId,
-    type:"group",
-    participants:myId
+    type: "group",
+    participants: myId
   });
 
-  if(!conversation){
-    throw new ApiError(404,"Group Chat not found");
+  if (!conversation) {
+    throw new ApiError(404, "Group Chat not found");
   }
   // Verify current user is a group admin
   const isCurrentAdmin = conversation.adminIds.some(
     id => id.toString() === myId.toString()
   );
 
-  if(!isCurrentAdmin){
-    throw new ApiError(403,"Only group admins can remove members");
+  if (!isCurrentAdmin) {
+    throw new ApiError(403, "Only group admins can remove members");
   }
   // Remove target user from participants and adminIds
   conversation.participants = conversation.participants.filter(
     id => id.toString() !== targetUserId.toString()
   );
-  
+
   conversation.adminIds = conversation.adminIds.filter(
     id => id.toString() !== targetUserId.toString()
   );

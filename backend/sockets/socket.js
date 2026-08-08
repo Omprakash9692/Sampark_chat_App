@@ -99,11 +99,28 @@ export const initSocket = (server) => {
                             "readBy.user": { $ne: userObjectId }
                         },
                         { 
-                            $set: { status: "seen" },
                             $push: { readBy: { user: userObjectId, readAt: now } },
                             $pull: { deliveredTo: { user: userObjectId } }
                         }
                     );
+
+                    const conversation = await Conversation.findById(conversationObjectId);
+                    if (conversation && conversation.type === "direct") {
+                        await Message.updateMany(
+                            { conversation: conversationObjectId, sender: { $ne: userObjectId } },
+                            { $set: { status: "seen" } }
+                        );
+                    } else if (conversation && conversation.participants) {
+                        const pCount = conversation.participants.length;
+                        await Message.updateMany(
+                            {
+                                conversation: conversationObjectId,
+                                sender: { $ne: userObjectId },
+                                $expr: { $gte: [{ $size: { $ifNull: ["$readBy", []] } }, pCount] }
+                            },
+                            { $set: { status: "seen" } }
+                        );
+                    }
 
                     // Broadcast to other sockets that messages in this chat are read by this user
                     socket.broadcast.emit("messages-seen", { chatId, userId });

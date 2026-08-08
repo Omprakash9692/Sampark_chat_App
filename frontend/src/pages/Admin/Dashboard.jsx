@@ -181,9 +181,9 @@ const MultiMetricBarChart = ({ weekData, monthDataMap, availableMonths, yearData
   const isTotalZero = data.every(d => (d.users || 0) === 0 && (d.groups || 0) === 0 && (d.reports || 0) === 0);
 
   return (
-    <div className="glass-premium rounded-[30px] p-6 bg-white/85 border border-slate-200/60 text-left shadow-[0_15px_35px_rgba(15,23,42,0.03)] hover-glow-card flex flex-col gap-5">
+    <div className="glass-premium rounded-[24px] sm:rounded-[30px] p-4 sm:p-6 bg-white/85 border border-slate-200/60 text-left shadow-[0_15px_35px_rgba(15,23,42,0.03)] hover-glow-card flex flex-col gap-4 sm:gap-5">
       {/* Header & Controls */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 select-none">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 select-none">
         <div>
           <h3 className="text-base font-black text-slate-950 flex items-center gap-2">
             <BarChart2 className="h-5 w-5 text-indigo-600" />
@@ -302,14 +302,15 @@ const MultiMetricBarChart = ({ weekData, monthDataMap, availableMonths, yearData
       </div>
 
       {/* Grouped Bar SVG Visualization */}
-      <div className="relative w-full overflow-hidden" style={{ height: 260 }}>
-        <svg
-          className="w-full h-full cursor-crosshair select-none"
-          viewBox={`0 0 ${W} ${H}`}
-          preserveAspectRatio="none"
-          onMouseMove={handleMouseMove}
-          onMouseLeave={() => setHoverIndex(null)}
-        >
+      <div className="relative w-full overflow-x-auto no-scrollbar" style={{ height: 260 }}>
+        <div className="min-w-[600px] sm:min-w-full h-full">
+          <svg
+            className="w-full h-full cursor-crosshair select-none"
+            viewBox={`0 0 ${W} ${H}`}
+            preserveAspectRatio="none"
+            onMouseMove={handleMouseMove}
+            onMouseLeave={() => setHoverIndex(null)}
+          >
           {/* Horizontal Grid lines */}
           {[0, 0.25, 0.5, 0.75, 1].map((r, i) => {
             const y = padTop + chartH * r;
@@ -404,12 +405,13 @@ const MultiMetricBarChart = ({ weekData, monthDataMap, availableMonths, yearData
             <span
               key={i}
               onClick={() => handleBarClick(i)}
-              className={`flex-1 text-center truncate ${hoverIndex === i ? 'text-indigo-600 font-black scale-110' : ''
+              className={`flex-1 text-center truncate px-0.5 ${hoverIndex === i ? 'text-indigo-600 font-black scale-110' : ''
                 } ${timeframe === 'month' && selectedWeek === 'all' ? 'cursor-pointer hover:underline' : ''}`}
             >
               {d.name}
             </span>
           ))}
+        </div>
         </div>
       </div>
 
@@ -819,22 +821,24 @@ export const Dashboard = () => {
       )}
 
       {/* Header */}
-      <div className="px-6 py-5 border-b border-slate-200/50 bg-white/70 backdrop-blur-xl flex flex-col lg:flex-row items-center justify-between gap-4 shrink-0 select-none shadow-[0_2px_20px_rgba(15,23,42,0.02)]">
-        <div className="text-left shrink-0">
-          <h2 className="text-lg font-black text-slate-950 flex items-center gap-2">
-            <Shield className="h-5 w-5 text-indigo-600" />
-            Compliance Dashboard
-          </h2>
-          <p className="text-[9px] text-indigo-600 font-bold uppercase tracking-[0.24em] mt-1.5">Admin Audit Panel — Realtime System Insights</p>
+      <div className="px-4 py-3.5 sm:px-6 sm:py-5 border-b border-slate-200/50 bg-white/70 backdrop-blur-xl flex flex-col lg:flex-row items-center justify-between gap-3 shrink-0 select-none shadow-[0_2px_20px_rgba(15,23,42,0.02)]">
+        <div className="text-left w-full lg:w-auto shrink-0 flex items-center justify-between">
+          <div>
+            <h2 className="text-base sm:text-lg font-black text-slate-950 flex items-center gap-2">
+              <Shield className="h-5 w-5 text-indigo-600 shrink-0" />
+              Compliance Dashboard
+            </h2>
+            <p className="text-[9px] text-indigo-600 font-bold uppercase tracking-[0.24em] mt-1">Admin Audit Panel — Realtime System Insights</p>
+          </div>
         </div>
-        <div className="flex items-center overflow-x-auto no-scrollbar justify-center min-w-0">
+        <div className="flex items-center overflow-x-auto no-scrollbar w-full lg:w-auto justify-start lg:justify-center pb-1 lg:pb-0">
           <Tabs tabs={adminTabs} activeTab={activeTab} onChange={setActiveTab} variant="pill" />
         </div>
         <div className="hidden lg:block w-[140px]" />
       </div>
 
       {/* Scrollable content */}
-      <div className="flex-grow overflow-y-auto p-6 md:p-8 space-y-8 no-scrollbar">
+      <div className="flex-grow overflow-y-auto p-4 sm:p-6 md:p-8 space-y-6 sm:space-y-8 no-scrollbar">
 
         {/* ═══ TAB: DASHBOARD ═══════════════════════════════════════════════════ */}
         {activeTab === 'dashboard' && (
@@ -898,9 +902,9 @@ export const Dashboard = () => {
               </div>
             </div>
 
-            <div className="bg-white/80 border border-slate-200/60 rounded-[30px] overflow-hidden shadow-[0_15px_45px_rgba(15,23,42,0.03)] backdrop-blur-md">
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse text-left">
+            <div className="bg-white/80 border border-slate-200/60 rounded-[20px] sm:rounded-[30px] overflow-hidden shadow-[0_15px_45px_rgba(15,23,42,0.03)] backdrop-blur-md">
+              <div className="overflow-x-auto w-full no-scrollbar">
+                <table className="w-full min-w-[680px] border-collapse text-left">
                   <thead>
                     <tr className="border-b border-slate-200 text-[10px] font-black uppercase text-slate-600 bg-slate-50/75 select-none tracking-widest">
                       <th className="px-6 py-4">User Details</th>
@@ -1004,9 +1008,9 @@ export const Dashboard = () => {
               </div>
             </div>
 
-            <div className="bg-white/80 border border-slate-200/60 rounded-[30px] overflow-hidden shadow-[0_15px_45px_rgba(15,23,42,0.03)] backdrop-blur-md">
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse text-left">
+            <div className="bg-white/80 border border-slate-200/60 rounded-[20px] sm:rounded-[30px] overflow-hidden shadow-[0_15px_45px_rgba(15,23,42,0.03)] backdrop-blur-md">
+              <div className="overflow-x-auto w-full no-scrollbar">
+                <table className="w-full min-w-[650px] border-collapse text-left">
                   <thead>
                     <tr className="border-b border-slate-200 text-[10px] font-black uppercase text-slate-600 bg-slate-50/75 select-none tracking-widest">
                       <th className="px-6 py-4">Group Name & Info</th>

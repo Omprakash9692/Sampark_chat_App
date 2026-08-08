@@ -7,13 +7,13 @@ import { useNotifications } from '../../context/NotificationContext';
 import { BrandLogo } from '../../components/ui/BrandLogo';
 
 export const Login = () => {
-  const { login, allUsers } = useAuth();
+  const { login } = useAuth();
   const { showToast } = useNotifications();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
-  const { register, handleSubmit, setValue, formState: { errors } } = useForm({
+  const { register, handleSubmit, formState: { errors } } = useForm({
     defaultValues: {
       email: '',
       password: ''
@@ -41,12 +41,6 @@ export const Login = () => {
     }
   };
 
-  const handleQuickFill = (email) => {
-    setValue('email', email);
-    setValue('password', 'password123');
-    showToast("Autofill Applied", `Selected account: ${email}`, "info");
-  };
-
   return (
     <div className="min-h-screen bg-[#efeae2] text-[#111b21] flex flex-col items-center justify-center p-4 sm:p-6 relative overflow-hidden font-sans select-none">
       
@@ -59,9 +53,6 @@ export const Login = () => {
         {/* Brand Header */}
         <div className="flex flex-col items-center text-center mb-6">
           <BrandLogo size="lg" showSubtitle={false} className="mb-2" />
-          <p className="text-xs text-[#667781] font-medium leading-relaxed">
-            Welcome back! Sign in to continue chatting.
-          </p>
         </div>
 
         {/* Tab Switcher */}
@@ -170,27 +161,6 @@ export const Login = () => {
             Register now
           </Link>
         </div>
-
-        {/* Quick Reviewer Accounts */}
-        {allUsers && allUsers.length > 0 && (
-          <div className="mt-6 border-t border-[#f0f2f5] pt-4 text-left">
-            <h4 className="mb-2 text-[10px] font-black uppercase tracking-[0.2em] text-[#8696a0]">
-              Quick Autofill Accounts
-            </h4>
-            <div className="flex flex-wrap gap-2">
-              {allUsers.slice(0, 3).map((u) => (
-                <button
-                  key={u.id}
-                  type="button"
-                  onClick={() => handleQuickFill(u.email)}
-                  className="rounded-xl border border-[#e9edef] bg-[#f0f2f5] px-3 py-1.5 text-[11px] font-bold text-[#111b21] hover:border-[#00a884] hover:bg-white transition-all cursor-pointer shadow-xs"
-                >
-                  {u.name.split(' ')[0]} ({u.role})
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
 
       </div>
     </div>

@@ -1,4 +1,4 @@
-import React, { useState, useRef,useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   X, Mail, Phone, Calendar, UserX, AlertTriangle, LogOut, Trash,
   ChevronRight, ImageIcon, FileText, Link as LinkIcon, Users, UserCheck, Shield,
@@ -211,9 +211,9 @@ export const SidebarRight = ({ onClose }) => {
     if (group) {
       const success = await deleteGroup(group.id);
       if (success) {
-        showToast("Space Dissolved", `The "${group.name}" group has been fully deleted.`, "warning");
+        showToast("Group Deleted", `The "${group.name}" group has been fully deleted.`, "warning");
       } else {
-        showToast("Action Failed", "Could not dissolve group space.", "danger");
+        showToast("Action Failed", "Could not delete group.", "danger");
       }
       setIsDeleteGroupModalOpen(false);
       if (onClose) onClose();
@@ -221,9 +221,11 @@ export const SidebarRight = ({ onClose }) => {
   };
 
   const myRealId = authUser?.id || authUser?._id?.toString();
-  const amIAdmin = !isDirect && group && (group.adminIds || []).some(
-    id => id === 'user_me' || id === myRealId
-  );
+  const amIAdmin = !isDirect && group && (group.adminIds || []).some(id => {
+    const idStr = typeof id === 'object' ? (id?._id?.toString() || id?.id) : id?.toString();
+    const myStr = authUser?._id?.toString() || authUser?.id;
+    return idStr === 'user_me' || idStr === myRealId || (myStr && idStr === myStr);
+  });
 
   const handleOpenEditGroupModal = () => {
     if (group) {
@@ -727,12 +729,15 @@ export const SidebarRight = ({ onClose }) => {
                   const memberRealId = member.id || member._id?.toString();
                   const myRealId = authUser?.id || authUser?._id?.toString();
 
-                  const isTargetAdmin = (group.adminIds || []).some(
-                    id => id === mid || id === memberRealId || (isMe && id === 'user_me')
-                  );
-                  const amIAdmin = (group.adminIds || []).some(
-                    id => id === 'user_me' || id === myRealId
-                  );
+                  const isTargetAdmin = (group.adminIds || []).some(id => {
+                    const idStr = typeof id === 'object' ? (id?._id?.toString() || id?.id) : id?.toString();
+                    return idStr === mid || idStr === memberRealId || (isMe && idStr === 'user_me') || (member?._id && idStr === member._id.toString());
+                  });
+                  const amIAdmin = (group.adminIds || []).some(id => {
+                    const idStr = typeof id === 'object' ? (id?._id?.toString() || id?.id) : id?.toString();
+                    const myStr = authUser?._id?.toString() || authUser?.id;
+                    return idStr === 'user_me' || idStr === myRealId || (myStr && idStr === myStr);
+                  });
 
                   const isMenuOpen = activeMemberMenuId === mid;
 
@@ -1012,7 +1017,7 @@ export const SidebarRight = ({ onClose }) => {
                     }}
                     className="w-full py-2.5 px-3.5 rounded-xl border border-[#008069]/30 bg-white hover:bg-[#008069]/10 text-[#008069] flex items-center gap-2 text-xs font-bold transition-colors cursor-pointer select-none shadow-xs"
                   >
-                    <UserPlus className="h-4.5 w-4.5" /> Add Members to Space
+                    <UserPlus className="h-4.5 w-4.5" /> Add members to group
                   </button>
                   <button
                     onClick={() => setIsLeaveModalOpen(true)}
@@ -1026,7 +1031,7 @@ export const SidebarRight = ({ onClose }) => {
                       onClick={() => setIsDeleteGroupModalOpen(true)}
                       className="w-full py-2.5 px-3.5 rounded-xl border border-rose-200 bg-white hover:bg-rose-600 hover:text-white text-rose-600 flex items-center gap-2 text-xs font-bold transition-colors cursor-pointer select-none shadow-xs"
                     >
-                      <Trash className="h-4.5 w-4.5" /> Dissolve Group Space
+                      <Trash className="h-4.5 w-4.5" /> Delete Group
                     </button>
                   )}
                 </>
@@ -1130,7 +1135,7 @@ export const SidebarRight = ({ onClose }) => {
               <p className="text-xs text-slate-650 dark:text-slate-400 leading-normal">
                 {isBlocked
                   ? `Are you sure you want to unblock ${recipient?.name}? They will be able to send you files, voice notes, and messages again.`
-                  : `Are you sure you want to block ${recipient?.name}? They will no longer be able to message you or invite you to spaces.`
+                  : `Are you sure you want to block ${recipient?.name}? They will no longer be able to message you or invite you to groups.`
                 }
               </p>
               <div className="flex justify-end gap-3 pt-2">
@@ -1138,7 +1143,7 @@ export const SidebarRight = ({ onClose }) => {
                   Cancel
                 </Button>
                 <Button variant={isBlocked ? "primary" : "danger"} onClick={handleBlockToggle}>
-                  {isBlocked ? "Unblock Contact" : "Block User"}
+                  {isBlocked ? "Unblock Contact" : "Block Contact"}
                 </Button>
               </div>
             </div>
@@ -1199,7 +1204,7 @@ export const SidebarRight = ({ onClose }) => {
               setIsLeaveModalOpen(false);
               setActiveAssignAdminMenuId(null);
             }}
-            title="Exit Group Space?"
+            title="Exit Group?"
             size="md"
           >
             {(!isDirect && group && amIAdmin && (group.adminIds?.length === 1) && (group.memberIds?.length > 1)) ? (
@@ -1212,14 +1217,14 @@ export const SidebarRight = ({ onClose }) => {
                   />
                 )}
 
-                {/* WhatsApp styled warning banner */}
+                {/* Warning banner */}
                 <div className="bg-[#008069]/10 p-3.5 rounded-2xl border border-[#008069]/30 text-xs font-semibold text-[#008069] space-y-1 shadow-2xs">
                   <div className="flex items-center gap-2 font-bold text-[#008069]">
                     <AlertTriangle className="h-4 w-4 shrink-0 text-[#008069]" />
                     Assign a New Admin First
                   </div>
                   <p className="text-[11px] leading-relaxed text-[#54656f]">
-                    You are currently the only admin in this group space. You must appoint a member as admin before leaving.
+                    You are currently the only admin in this group. You must appoint a member as admin before leaving.
                   </p>
                 </div>
 
@@ -1227,11 +1232,19 @@ export const SidebarRight = ({ onClose }) => {
                   Select a member to promote to Admin:
                 </p>
 
-                <div className="max-h-56 overflow-y-auto space-y-2 pr-1 no-scrollbar">
+                <div className="min-h-[140px] max-h-60 overflow-y-auto space-y-2 pr-1 pb-12 no-scrollbar">
                   {allUsers
                     .filter(u => {
                       const uRealId = u.id || u._id?.toString();
-                      return group.memberIds?.includes(uRealId) && uRealId !== 'user_me' && uRealId !== myRealId;
+                      return (
+                        (group.memberIds || []).some(mId => {
+                          const mStr = typeof mId === 'object' ? (mId._id?.toString() || mId.id) : mId?.toString();
+                          return mStr === uRealId || (u._id && mStr === u._id.toString());
+                        }) &&
+                        uRealId !== 'user_me' &&
+                        uRealId !== myRealId &&
+                        (authUser?._id ? uRealId !== authUser._id.toString() : true)
+                      );
                     })
                     .map(member => {
                       const memberRealId = member.id || member._id?.toString();
@@ -1252,7 +1265,7 @@ export const SidebarRight = ({ onClose }) => {
                                 e.stopPropagation();
                                 setActiveAssignAdminMenuId(isMenuOpen ? null : memberRealId);
                               }}
-                              className="p-1.5 rounded-lg text-[#667781] hover:text-[#111b21] hover:bg-slate-200/60 transition-colors cursor-pointer"
+                              className="p-1.5 rounded-lg text-[#667781] hover:text-[#111b21] hover:bg-slate-200/60 transition-colors cursor-pointer shrink-0"
                               title="Options"
                             >
                               <MoreVertical className="h-4 w-4" />
@@ -1269,7 +1282,7 @@ export const SidebarRight = ({ onClose }) => {
                                   setActiveAssignAdminMenuId(null);
                                   const success = await makeGroupAdmin(group.id, memberRealId);
                                   if (success) {
-                                    showToast("Admin Assigned", `${member.name} is now a group admin. You can now exit the group space.`, "success");
+                                    showToast("Admin Assigned", `${member.name} is now a group admin. You can now exit the group.`, "success");
                                   } else {
                                     showToast("Action Failed", "Could not assign admin permissions.", "danger");
                                   }
@@ -1277,7 +1290,7 @@ export const SidebarRight = ({ onClose }) => {
                                 className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-[#111b21] hover:bg-[#008069]/10 hover:text-[#008069] rounded-lg cursor-pointer transition-colors text-left"
                               >
                                 <ShieldCheck className="h-4 w-4 text-[#008069] shrink-0" />
-                                <span>Make admin</span>
+                                <span>Make group admin</span>
                               </button>
                             </div>
                           )}
@@ -1295,14 +1308,14 @@ export const SidebarRight = ({ onClose }) => {
             ) : (
               <div className="text-left space-y-4 select-none">
                 <p className="text-xs text-[#54656f] leading-relaxed font-medium">
-                  Are you sure you want to leave the "<strong className="text-[#111b21] font-extrabold">{group?.name}</strong>" group space? You will lose access to the message history and no longer receive updates.
+                  Are you sure you want to leave the "<strong className="text-[#111b21] font-extrabold">{group?.name}</strong>" group? You will lose access to the message history and no longer receive updates.
                 </p>
                 <div className="flex justify-end gap-3 pt-3 border-t border-slate-200/80">
                   <Button variant="outline" onClick={() => setIsLeaveModalOpen(false)} className="rounded-xl border border-slate-200 font-extrabold text-xs text-[#111b21]">
                     Cancel
                   </Button>
                   <Button variant="danger" onClick={handleLeaveGroup} className="rounded-xl font-extrabold text-xs bg-rose-600 hover:bg-rose-700 text-white shadow-md">
-                    Exit Space
+                    Exit Group
                   </Button>
                 </div>
               </div>
@@ -1313,7 +1326,7 @@ export const SidebarRight = ({ onClose }) => {
           <Modal
             isOpen={isAddMembersModalOpen}
             onClose={() => setIsAddMembersModalOpen(false)}
-            title="Add Members to Space"
+            title="Add Members to Group"
             size="md"
           >
             <form onSubmit={handleAddMembersSubmit} className="space-y-4 text-left p-1 select-none">
@@ -1350,13 +1363,12 @@ export const SidebarRight = ({ onClose }) => {
                             isChecked ? prev.filter(id => id !== uId) : [...prev, uId]
                           );
                         }}
-                        className={`flex items-center justify-between p-3 rounded-2xl cursor-pointer transition-all border ${
-                          isPending
+                        className={`flex items-center justify-between p-3 rounded-2xl cursor-pointer transition-all border ${isPending
                             ? 'bg-amber-500/10 border-amber-300/80 opacity-95'
                             : isChecked
-                            ? 'bg-[#008069]/10 border-[#008069] shadow-2xs'
-                            : 'bg-white border border-slate-200/80 shadow-2xs hover:border-[#008069]/40 hover:bg-slate-50/50'
-                        }`}
+                              ? 'bg-[#008069]/10 border-[#008069] shadow-2xs'
+                              : 'bg-white border border-slate-200/80 shadow-2xs hover:border-[#008069]/40 hover:bg-slate-50/50'
+                          }`}
                       >
                         <div className="flex items-center gap-3 min-w-0">
                           <Avatar src={u.avatar} name={u.name} size="sm" color={u.avatarColor} />
@@ -1414,24 +1426,24 @@ export const SidebarRight = ({ onClose }) => {
             </form>
           </Modal>
 
-          {/* DISSOLVE GROUP MODAL */}
+          {/* DELETE GROUP MODAL */}
 
           <Modal
             isOpen={isDeleteGroupModalOpen}
             onClose={() => setIsDeleteGroupModalOpen(false)}
-            title="Dissolve Group Space?"
+            title="Delete Group?"
             size="sm"
           >
             <div className="text-left space-y-4">
               <p className="text-xs text-slate-650 dark:text-slate-400 leading-normal">
-                Are you sure you want to dissolve the "{group?.name}" group space? This action is permanent. All message history and participant list links will be cleared for everyone.
+                Are you sure you want to delete the "{group?.name}" group? This action is permanent. All message history and participant list links will be cleared for everyone.
               </p>
               <div className="flex justify-end gap-3 pt-2">
                 <Button variant="outline" onClick={() => setIsDeleteGroupModalOpen(false)}>
                   Cancel
                 </Button>
                 <Button variant="danger" onClick={handleDeleteGroup}>
-                  Dissolve Space
+                  Delete Group
                 </Button>
               </div>
             </div>
