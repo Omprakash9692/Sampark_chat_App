@@ -33,23 +33,42 @@ const formatConversation = (conv, currentUserId, unreadCount = 0) => {
   let conversationTime = conv.createdAt;
 
   if (lastMsgObj && typeof lastMsgObj === 'object' && lastMsgObj._id) {
-    const msgCreatedAt = lastMsgObj.createdAt ? new Date(lastMsgObj.createdAt).getTime() : 0;
-    const joinedAtTime = joinedAt ? new Date(joinedAt).getTime() : 0;
+    const isDeletedForMe = Array.isArray(lastMsgObj.deletedFor) &&
+      lastMsgObj.deletedFor.some(id => (id._id ? id._id.toString() : id.toString()) === currentUserId.toString());
 
-    // Only format last message for this user if it was sent AFTER or AT the time the user joined
-    if (!joinedAtTime || msgCreatedAt >= joinedAtTime) {
-      const senderIdStr = lastMsgObj.sender ? (lastMsgObj.sender._id ? lastMsgObj.sender._id.toString() : lastMsgObj.sender.toString()) : "";
-      lastMsgFormatted = {
-        id: lastMsgObj._id.toString(),
-        chatId: conv._id.toString(),
-        senderId: senderIdStr === currentUserId.toString() ? "user_me" : senderIdStr,
-        text: lastMsgObj.text || "",
-        type: lastMsgObj.type || "text",
-        timestamp: lastMsgObj.createdAt || conv.createdAt,
-        status: lastMsgObj.status || "sent"
-      };
-      lastMsgIdStr = lastMsgObj._id.toString();
-      conversationTime = lastMsgObj.createdAt;
+    if (!isDeletedForMe) {
+      const msgCreatedAt = lastMsgObj.createdAt ? new Date(lastMsgObj.createdAt).getTime() : 0;
+      const joinedAtTime = joinedAt ? new Date(joinedAt).getTime() : 0;
+
+      // Only format last message for this user if it was sent AFTER or AT the time the user joined
+      if (!joinedAtTime || msgCreatedAt >= joinedAtTime) {
+        const senderIdStr = lastMsgObj.sender ? (lastMsgObj.sender._id ? lastMsgObj.sender._id.toString() : lastMsgObj.sender.toString()) : "";
+        
+        let computedLastStatus = lastMsgObj.status || "sent";
+        if (senderIdStr === currentUserId.toString()) {
+          const hasBeenRead = (lastMsgObj.readBy || []).length > 0;
+          const hasBeenDelivered = (lastMsgObj.deliveredTo || []).length > 0;
+          if (computedLastStatus === "seen" || hasBeenRead) {
+            computedLastStatus = "seen";
+          } else if (computedLastStatus === "delivered" || hasBeenDelivered) {
+            computedLastStatus = "delivered";
+          } else {
+            computedLastStatus = "sent";
+          }
+        }
+
+        lastMsgFormatted = {
+          id: lastMsgObj._id.toString(),
+          chatId: conv._id.toString(),
+          senderId: senderIdStr === currentUserId.toString() ? "user_me" : senderIdStr,
+          text: lastMsgObj.text || "",
+          type: lastMsgObj.type || "text",
+          timestamp: lastMsgObj.createdAt || conv.createdAt,
+          status: computedLastStatus
+        };
+        lastMsgIdStr = lastMsgObj._id.toString();
+        conversationTime = lastMsgObj.createdAt;
+      }
     }
   }
 
@@ -118,16 +137,69 @@ const formatConversation = (conv, currentUserId, unreadCount = 0) => {
 };
 
 
+// Helper: Ensure 1 reaction per user ID across all emojis on a message
+const sanitizeEmojiReactions = (rawReactions, currentUserId) => {
+  if (!Array.isArray(rawReactions)) return [];
+
+  const seenUserIds = new Set();
+  const result = [];
+  const currentUserIdStr = currentUserId ? currentUserId.toString() : "";
+
+  for (let i = rawReactions.length - 1; i >= 0; i--) {
+    const r = rawReactions[i];
+    if (!r || !r.emoji) continue;
+
+    const filteredUserIds = [];
+    const rawUserIds = r.userIds || [];
+
+    for (let j = rawUserIds.length - 1; j >= 0; j--) {
+      const id = rawUserIds[j];
+      const idStr = id._id ? id._id.toString() : id.toString();
+      if (!seenUserIds.has(idStr)) {
+        seenUserIds.add(idStr);
+        filteredUserIds.unshift(idStr === currentUserIdStr ? "user_me" : idStr);
+      }
+    }
+
+    if (filteredUserIds.length > 0) {
+      result.unshift({
+        emoji: r.emoji,
+        count: filteredUserIds.length,
+        userIds: filteredUserIds
+      });
+    }
+  }
+
+  return result;
+};
+
 // Helper: Format Mongoose Message to matches frontend context properties
 const formatMessage = (msg, currentUserId) => {
+  const currentUserIdStr = currentUserId ? currentUserId.toString() : "";
+  const senderIdStr = msg.sender ? (msg.sender._id ? msg.sender._id.toString() : msg.sender.toString()) : "";
+
+  let computedStatus = msg.status || "sent";
+  if (senderIdStr === currentUserIdStr) {
+    const hasBeenRead = (msg.readBy || []).length > 0;
+    const hasBeenDelivered = (msg.deliveredTo || []).length > 0;
+
+    if (computedStatus === "seen" || hasBeenRead) {
+      computedStatus = "seen";
+    } else if (computedStatus === "delivered" || hasBeenDelivered) {
+      computedStatus = "delivered";
+    } else {
+      computedStatus = "sent";
+    }
+  }
+
   return {
     id: msg._id.toString(),
     chatId: msg.conversation.toString(),
-    senderId: msg.sender.toString() === currentUserId.toString() ? "user_me" : msg.sender.toString(),
+    senderId: senderIdStr === currentUserIdStr ? "user_me" : senderIdStr,
     text: msg.text,
     type: msg.type,
     timestamp: msg.createdAt,
-    status: msg.status,
+    status: computedStatus,
     isForwarded: msg.isForwarded || false,
     replyToId: msg.replyToId ? msg.replyToId.toString() : null,
     edited: msg.edited || false,
@@ -136,7 +208,7 @@ const formatMessage = (msg, currentUserId) => {
     attachmentName: msg.attachmentName,
     attachmentSize: msg.attachmentSize,
     attachmentDuration: msg.attachmentDuration,
-    emojiReactions: msg.emojiReactions || []
+    emojiReactions: sanitizeEmojiReactions(msg.emojiReactions, currentUserId)
   };
 };
 
@@ -144,7 +216,10 @@ const formatMessage = (msg, currentUserId) => {
 export const getUserChats = asyncHandler(async (req, res) => {
   const userId = req.user._id;
 
-  const conversations = await Conversation.find({ participants: userId })
+  const conversations = await Conversation.find({
+    participants: userId,
+    deletedBy: { $ne: userId }
+  })
     .populate("participants", "name email avatar isOnline lastSeen")
     .populate("joinRequests.user", "name email avatar")
     .populate("joinRequests.requestedBy", "name email avatar")
@@ -162,7 +237,8 @@ export const getUserChats = asyncHandler(async (req, res) => {
     const filter = {
       conversation: cId,
       sender: { $ne: userId },
-      "readBy.user": { $ne: userId }
+      "readBy.user": { $ne: userId },
+      deletedFor: { $ne: userId }
     };
 
     if (c.type === "group" && c.memberJoinedAt) {
@@ -191,9 +267,19 @@ export const getUserChats = asyncHandler(async (req, res) => {
     unreadMap[cId.toString()] = count;
   }
 
-  const formatted = conversations.map(c =>
-    formatConversation(c, userId, unreadMap[c._id.toString()] || 0)
-  );
+  const formatted = [];
+  for (const c of conversations) {
+    if (c.type === "direct") {
+      const validParticipants = (c.participants || []).filter(p => p && (p._id || p.id));
+      if (validParticipants.length < 2) {
+        // Clean up orphan conversation with deleted user
+        await Message.deleteMany({ conversation: c._id });
+        await Conversation.findByIdAndDelete(c._id);
+        continue;
+      }
+    }
+    formatted.push(formatConversation(c, userId, unreadMap[c._id.toString()] || 0));
+  }
 
   return res.status(200).json(
     new ApiResponse(200, "Chats fetched successfully", { chats: formatted })
@@ -231,7 +317,7 @@ export const getChatMessages = asyncHandler(async (req, res) => {
       }
     );
 
-    // Update message overall status to "seen" when appropriate (DM or when all participants have read)
+    // Update message overall status to "seen" when appropriate (DM or when all other participants have read)
     if (conversation.type === "direct") {
       await Message.updateMany(
         {
@@ -244,11 +330,12 @@ export const getChatMessages = asyncHandler(async (req, res) => {
       );
     } else if (conversation.type === "group") {
       const participantCount = conversation.participants ? conversation.participants.length : 1;
+      const neededReadCount = Math.max(1, participantCount - 1);
       await Message.updateMany(
         {
           conversation: chatId,
           sender: { $ne: userId },
-          $expr: { $gte: [{ $size: { $ifNull: ["$readBy", []] } }, participantCount] }
+          $expr: { $gte: [{ $size: { $ifNull: ["$readBy", []] } }, neededReadCount] }
         },
         {
           $set: { status: "seen" }
@@ -304,7 +391,12 @@ export const createDirectChat = asyncHandler(async (req, res) => {
     participants: { $all: [myId, userId] }
   });
 
-  if (!conversation) {
+  if (conversation) {
+    if (conversation.deletedBy && conversation.deletedBy.length > 0) {
+      conversation.deletedBy = conversation.deletedBy.filter(id => id.toString() !== myId.toString());
+      await conversation.save();
+    }
+  } else {
     conversation = await Conversation.create({
       type: "direct",
       participants: [myId, userId]
@@ -388,6 +480,12 @@ export const sendMessage = asyncHandler(async (req, res) => {
 
   if (!conversation) {
     throw new ApiError(403, "Access denied to send message in this conversation");
+  }
+
+  // Restore active conversation state for all participants if previously deleted
+  if (conversation.deletedBy && conversation.deletedBy.length > 0) {
+    conversation.deletedBy = [];
+    await conversation.save();
   }
 
   if (conversation.isBlocked) {
@@ -635,42 +733,47 @@ export const toggleReaction = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Message not found");
   }
 
-  // Find if emoji already has reactions
-  const existingReactionIndex = message.emojiReactions.findIndex(r => r.emoji === emoji);
+  const myIdStr = myId.toString();
 
-  if (existingReactionIndex > -1) {
-    const reaction = message.emojiReactions[existingReactionIndex];
-    const userIndex = reaction.userIds.indexOf(myId);
+  // Check if user already reacted with this EXACT emoji
+  const exactMatchIndex = (message.emojiReactions || []).findIndex(
+    r => r.emoji === emoji && (r.userIds || []).some(id => (id._id ? id._id.toString() : id.toString()) === myIdStr)
+  );
 
-    if (userIndex > -1) {
-      // Remove reaction
-      reaction.userIds.splice(userIndex, 1);
-      // If no users left for this emoji, remove the emoji reaction completely
-      if (reaction.userIds.length === 0) {
-        message.emojiReactions.splice(existingReactionIndex, 1);
-      }
+  // Remove current user ID from ALL existing emoji reactions on this message
+  (message.emojiReactions || []).forEach(r => {
+    r.userIds = (r.userIds || []).filter(id => (id._id ? id._id.toString() : id.toString()) !== myIdStr);
+  });
+
+  // Filter out any emoji reactions that now have 0 users
+  message.emojiReactions = (message.emojiReactions || []).filter(r => r.userIds && r.userIds.length > 0);
+
+  // If user did NOT already have this exact emoji, add user to this emoji
+  if (exactMatchIndex === -1) {
+    const existingEmojiIndex = message.emojiReactions.findIndex(r => r.emoji === emoji);
+    if (existingEmojiIndex > -1) {
+      message.emojiReactions[existingEmojiIndex].userIds.push(myId);
     } else {
-      // Add user to existing emoji
-      reaction.userIds.push(myId);
+      message.emojiReactions.push({
+        emoji,
+        userIds: [myId]
+      });
     }
-  } else {
-    // Add new emoji reaction
-    message.emojiReactions.push({
-      emoji,
-      userIds: [myId]
-    });
   }
 
   await message.save();
 
-  // Return updated reactions
-  const formattedReactions = message.emojiReactions.map(r => {
-    return {
-      emoji: r.emoji,
-      count: r.userIds.length,
-      userIds: r.userIds.map(id => id.toString() === myId.toString() ? "user_me" : id.toString())
-    };
-  });
+  // Format updated reactions with sanitization
+  const formattedReactions = sanitizeEmojiReactions(message.emojiReactions, myId);
+
+  // Real-time broadcast to connected participants
+  const io = req.app.get("io");
+  if (io) {
+    io.emit("message-reaction-updated", {
+      messageId: message._id.toString(),
+      emojiReactions: formattedReactions
+    });
+  }
 
   return res.status(200).json(
     new ApiResponse(200, "Reaction toggled successfully", {
@@ -709,7 +812,18 @@ export const editMessage = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Message can only be edited within 24 hours of being sent.");
   }
 
-  message.text = text;
+  const cleanNewText = text.trim();
+  const cleanOldText = (message.text || "").trim();
+
+  if (cleanNewText === cleanOldText) {
+    return res.status(200).json(
+      new ApiResponse(200, "Message unchanged", {
+        message: formatMessage(message, myId)
+      })
+    );
+  }
+
+  message.text = cleanNewText;
   message.edited = true;
   await message.save();
 
@@ -1549,12 +1663,34 @@ export const clearChatMessages = asyncHandler(async (req, res) => {
 // Delete Chat Conversation
 export const deleteChat = asyncHandler(async (req, res) => {
   const { chatId } = req.params;
+  const myId = req.user._id;
 
   const conversation = await Conversation.findById(chatId);
   if (!conversation) throw new ApiError(404, "Chat space not found");
 
-  await Message.deleteMany({ conversation: chatId });
-  await Conversation.findByIdAndDelete(chatId);
+  if (!conversation.deletedBy) conversation.deletedBy = [];
+  const myIdStr = myId.toString();
+  if (!conversation.deletedBy.some(id => id.toString() === myIdStr)) {
+    conversation.deletedBy.push(myId);
+  }
+
+  // Also clear messages for current user
+  await Message.updateMany(
+    { conversation: chatId, deletedFor: { $ne: myId } },
+    { $push: { deletedFor: myId } }
+  );
+
+  // If all participants have deleted this conversation, hard delete
+  const participantStrs = (conversation.participants || []).map(p => p.toString());
+  const deletedByStrs = conversation.deletedBy.map(d => d.toString());
+  const allDeleted = participantStrs.length > 0 && participantStrs.every(pId => deletedByStrs.includes(pId));
+
+  if (allDeleted) {
+    await Message.deleteMany({ conversation: chatId });
+    await Conversation.findByIdAndDelete(chatId);
+  } else {
+    await conversation.save();
+  }
 
   return res.status(200).json(
     new ApiResponse(200, "Chat deleted successfully", { chatId })

@@ -611,10 +611,10 @@ export const Dashboard = () => {
       if (res.ok) {
         if (typeof fetchDbUsers === 'function') fetchDbUsers();
         refreshAll(); // immediate dashboard refresh
-        showToast('User Purged', `Account of ${userName} has been removed from database.`, 'danger');
+        showToast('User Deleted', `Account of ${userName} has been removed from database.`, 'danger');
       }
     } catch (err) {
-      showToast('Error', 'Failed to purge user account.', 'danger');
+      showToast('Error', 'Failed to delete user account.', 'danger');
     }
   };
 
@@ -630,10 +630,10 @@ export const Dashboard = () => {
 
   const handleDeleteUserConfirmed = (userId, userName) => {
     triggerConfirm(
-      'Purge User Account',
+      'Delete User Account',
       `Are you sure you want to permanently delete the account of "${userName}"? This action cannot be undone.`,
       () => handleDeleteUser(userId, userName),
-      'Purge User',
+      'Delete User',
       'danger'
     );
   };
@@ -675,7 +675,7 @@ export const Dashboard = () => {
           });
           if (res.ok) {
             refreshAll(); // immediate dashboard refresh
-            showToast('Group Purged', `Group "${groupName}" deleted from database.`, 'danger');
+            showToast('Group Deleted', `Group "${groupName}" deleted from database.`, 'danger');
           }
         } catch (err) {
           showToast('Error', 'Failed to delete group.', 'danger');
@@ -964,7 +964,7 @@ export const Dashboard = () => {
                                   <button
                                     onClick={() => handleDeleteUserConfirmed(u.id, u.name)}
                                     className="inline-flex p-2 rounded-xl border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100 hover:scale-105 active:scale-95 transition-all cursor-pointer"
-                                    title="Purge User Account"
+                                    title="Delete User Account"
                                   >
                                     <Trash2 className="h-4 w-4" />
                                   </button>

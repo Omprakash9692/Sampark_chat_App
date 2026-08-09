@@ -19,7 +19,8 @@ export const SidebarRight = ({ onClose }) => {
     activeChatId, getActiveChat, getChatMessages, groups,
     blockUser, unblockUser, blockedUserIds, reportUser, leaveGroup, deleteGroup,
     makeGroupAdmin, dismissGroupAdmin, removeFromGroup, addMembersToGroup, updateGroupProfile, uploadFile,
-    createDirectChat, updateGroupPermissions, handleJoinRequest
+    createDirectChat, updateGroupPermissions, handleJoinRequest,
+    starredMsgIds, toggleStarMessage, clearAllStarredMessages
   } = useChat();
   const { user: authUser, allUsers } = useAuth();
   const { showToast } = useNotifications();
@@ -57,25 +58,14 @@ export const SidebarRight = ({ onClose }) => {
   const [starredSearchQuery, setStarredSearchQuery] = useState('');
   const [isUnstarMenuOpen, setIsUnstarMenuOpen] = useState(false);
   const [isUnstarConfirmModalOpen, setIsUnstarConfirmModalOpen] = useState(false);
-  const [starredMsgIds, setStarredMsgIds] = useState(() => JSON.parse(localStorage.getItem('starredMsgIds') || '[]'));
-
-  // Sync starredMsgIds whenever showStarredView toggles
-  useEffect(() => {
-    if (showStarredView) {
-      setStarredMsgIds(JSON.parse(localStorage.getItem('starredMsgIds') || '[]'));
-    }
-  }, [showStarredView]);
 
   const handleUnstarSingleMessage = (msgId) => {
-    const updated = starredMsgIds.filter(id => id !== msgId);
-    setStarredMsgIds(updated);
-    localStorage.setItem('starredMsgIds', JSON.stringify(updated));
+    toggleStarMessage(msgId);
     showToast("Message Unstarred", "Removed message from starred list.", "info");
   };
 
   const handleConfirmUnstarAll = () => {
-    setStarredMsgIds([]);
-    localStorage.setItem('starredMsgIds', '[]');
+    clearAllStarredMessages();
     setIsUnstarConfirmModalOpen(false);
     setIsUnstarMenuOpen(false);
     showToast("All Messages Unstarred", "Starred messages list cleared.", "success");
@@ -518,7 +508,7 @@ export const SidebarRight = ({ onClose }) => {
         {/* Header */}
         <div className="h-16 px-4 border-b border-[#e9edef] bg-[#f0f2f5] flex items-center justify-between shrink-0 select-none">
           <h4 className="text-sm font-bold text-[#111b21] uppercase tracking-wider">
-            {isDirect ? "Contact Details" : "Group Space Details"}
+            {isDirect ? "Contact Details" : "Group Details"}
           </h4>
           <button
             onClick={onClose}

@@ -56,6 +56,12 @@ const conversationSchema = new mongoose.Schema(
         ref: "User",
       }
     ],
+    deletedBy: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      }
+    ],
     lastMessage: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Message",

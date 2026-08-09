@@ -138,7 +138,7 @@ export const SidebarLeft = ({ closeMobileSidebar }) => {
   const handleCreateGroupSubmit = async (e) => {
     e.preventDefault();
     if (!groupName.trim()) {
-      showToast("Validation Error", "Please enter a group space name.", "warning");
+      showToast("Validation Error", "Please enter a group name.", "warning");
       return;
     }
     if (selectedMembers.length === 0) {
@@ -154,7 +154,7 @@ export const SidebarLeft = ({ closeMobileSidebar }) => {
     });
 
     if (newGroup) {
-      showToast("Group Created", `Group space "${groupName}" created successfully!`, "success");
+      showToast("Group Created", `Group "${groupName}" created successfully!`, "success");
       setIsGroupModalOpen(false);
       setGroupStep(1);
       setGroupName('');
@@ -164,7 +164,7 @@ export const SidebarLeft = ({ closeMobileSidebar }) => {
       setGroupAvatarUrl('');
       setMemberSearchQuery('');
     } else {
-      showToast("Creation Failed", "Could not create group space.", "danger");
+      showToast("Creation Failed", "Could not create group.", "danger");
     }
   };
 
@@ -251,7 +251,7 @@ export const SidebarLeft = ({ closeMobileSidebar }) => {
 
           {/* Global Search Bar */}
           <div className="relative">
-            <Search className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#667781] h-4.5 w-4.5 my-auto" />
+            
             <input
               type="text"
               placeholder="Search or start new chat"
@@ -379,7 +379,7 @@ export const SidebarLeft = ({ closeMobileSidebar }) => {
                   {openMenuChatId === chat.id && (
                     <div
                       onClick={(e) => e.stopPropagation()}
-                      className="absolute right-3 top-10 z-50 bg-slate-900/95 dark:bg-slate-950 backdrop-blur-md text-slate-200 rounded-xl shadow-2xl border border-slate-700/80 py-1.5 w-48 text-xs font-semibold select-none animate-in fade-in zoom-in-95"
+                      className="absolute right-3 top-10 z-50 bg-white text-[#111b21] rounded-xl shadow-2xl border border-slate-200/90 py-1.5 w-48 text-xs font-semibold select-none animate-in fade-in zoom-in-95"
                     >
                       <button
                         onClick={() => {
@@ -387,9 +387,9 @@ export const SidebarLeft = ({ closeMobileSidebar }) => {
                           setOpenMenuChatId(null);
                           showToast(chat.archived ? "Chat Unarchived" : "Chat Archived", chat.archived ? "Chat restored to main list" : "Moved to Archived folder", "info");
                         }}
-                        className="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-slate-800 transition-colors text-left"
+                        className="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-slate-100 transition-colors text-left text-[#111b21]"
                       >
-                        <Archive className="h-4 w-4 text-slate-400" />
+                        <Archive className="h-4 w-4 text-[#667781]" />
                         {chat.archived ? "Unarchive chat" : "Archive chat"}
                       </button>
 
@@ -399,9 +399,9 @@ export const SidebarLeft = ({ closeMobileSidebar }) => {
                           setOpenMenuChatId(null);
                           showToast(chat.pinned ? "Chat Unpinned" : "Chat Pinned", chat.pinned ? "Unpinned from top" : "Pinned to top of chat list", "info");
                         }}
-                        className="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-slate-800 transition-colors text-left"
+                        className="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-slate-100 transition-colors text-left text-[#111b21]"
                       >
-                        <Pin className="h-4 w-4 text-slate-400" />
+                        <Pin className="h-4 w-4 text-[#667781]" />
                         {chat.pinned ? "Unpin chat" : "Pin chat"}
                       </button>
 
@@ -410,13 +410,13 @@ export const SidebarLeft = ({ closeMobileSidebar }) => {
                           toggleUnreadChat(chat.id);
                           setOpenMenuChatId(null);
                         }}
-                        className="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-slate-800 transition-colors text-left"
+                        className="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-slate-100 transition-colors text-left text-[#111b21]"
                       >
-                        <Mail className="h-4 w-4 text-slate-400" />
+                        <Mail className="h-4 w-4 text-[#667781]" />
                         {chat.isUnread || chat.unreadCount > 0 ? "Mark as read" : "Mark as unread"}
                       </button>
 
-                      <div className="my-1 border-t border-slate-800" />
+                      <div className="my-1 border-t border-slate-100" />
 
                       <button
                         onClick={() => {
@@ -424,7 +424,7 @@ export const SidebarLeft = ({ closeMobileSidebar }) => {
                           setOpenMenuChatId(null);
                           showToast("Chat Cleared", "Messages cleared for this conversation.", "info");
                         }}
-                        className="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-slate-800 transition-colors text-left text-amber-400"
+                        className="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-slate-100 transition-colors text-left text-amber-600 font-bold"
                       >
                         <Eraser className="h-4 w-4" />
                         Clear chat
@@ -436,7 +436,7 @@ export const SidebarLeft = ({ closeMobileSidebar }) => {
                           setOpenMenuChatId(null);
                           showToast("Chat Deleted", "Conversation deleted successfully.", "warning");
                         }}
-                        className="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-slate-800 transition-colors text-left text-rose-400 font-bold"
+                        className="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-slate-100 transition-colors text-left text-rose-600 font-bold"
                       >
                         <Trash2 className="h-4 w-4" />
                         Delete chat
@@ -567,15 +567,14 @@ export const SidebarLeft = ({ closeMobileSidebar }) => {
               )}
           </div>
 
-          <div className="flex justify-end gap-2.5 pt-4 border-t border-slate-200/80">
-            <Button
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200/80">
+            <button
               type="button"
-              variant="outline"
               onClick={() => setIsNewContactModalOpen(false)}
-              className="rounded-xl border border-slate-200 text-xs font-extrabold text-[#111b21]"
+              className="px-5 py-2.5 rounded-full text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200/80 hover:text-slate-900 border border-slate-200/60 active:scale-95 transition-all cursor-pointer"
             >
               Cancel
-            </Button>
+            </button>
           </div>
         </div>
       </Modal>
@@ -690,24 +689,29 @@ export const SidebarLeft = ({ closeMobileSidebar }) => {
                   })}
               </div>
 
-              <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-200/80">
-                <Button
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200/80">
+                <button
                   type="button"
-                  variant="outline"
                   onClick={() => setIsGroupModalOpen(false)}
-                  className="rounded-xl border border-slate-200 font-extrabold text-xs text-[#111b21]"
+                  className="px-5 py-2.5 rounded-full text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200/80 hover:text-slate-900 border border-slate-200/60 active:scale-95 transition-all cursor-pointer"
                 >
                   Cancel
-                </Button>
-                <Button
+                </button>
+                <button
                   type="button"
-                  variant="primary"
                   disabled={selectedMembers.length === 0}
                   onClick={() => setGroupStep(2)}
-                  className="rounded-xl font-extrabold text-xs bg-[#008069] hover:bg-[#006e5a] text-white shadow-md gap-1.5"
+                  className={`
+                    px-6 py-2.5 rounded-full text-xs font-extrabold flex items-center gap-1.5 transition-all duration-200 shadow-sm
+                    ${selectedMembers.length > 0
+                      ? 'bg-gradient-to-r from-[#008069] to-[#00a884] hover:from-[#006e5a] hover:to-[#008069] text-white shadow-md shadow-[#008069]/25 hover:shadow-lg hover:shadow-[#008069]/35 active:scale-95 cursor-pointer'
+                      : 'bg-slate-200 text-slate-400 cursor-not-allowed border border-slate-200/60'
+                    }
+                  `}
                 >
-                  Next <ChevronRight className="h-4 w-4" />
-                </Button>
+                  <span>Next</span>
+                  <ChevronRight className="h-4 w-4" />
+                </button>
               </div>
             </div>
           )}
@@ -737,7 +741,7 @@ export const SidebarLeft = ({ closeMobileSidebar }) => {
                   />
                 </div>
                 <span className="text-[10px] font-black uppercase text-[#667781] tracking-wider">
-                  {isUploadingGroupAvatar ? "Uploading icon..." : "Group Space Icon (Click to change)"}
+                  {isUploadingGroupAvatar ? "Uploading icon..." : "Group Icon (Click to change)"}
                 </span>
               </div>
 
@@ -748,7 +752,7 @@ export const SidebarLeft = ({ closeMobileSidebar }) => {
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. Developer Space, Marketing Team"
+                  placeholder="e.g. Developers, Marketing Team"
                   value={groupName}
                   onChange={(e) => setGroupName(e.target.value)}
                   required
@@ -762,7 +766,7 @@ export const SidebarLeft = ({ closeMobileSidebar }) => {
                   Description (Optional)
                 </label>
                 <textarea
-                  placeholder="Provide a short summary of what this group space is about..."
+                  placeholder="Provide a short summary of what this group is about..."
                   value={groupDesc}
                   onChange={(e) => setGroupDesc(e.target.value)}
                   className="block w-full rounded-xl bg-[#f0f4f8] border border-slate-200/80 focus:border-[#008069] focus:ring-1 focus:ring-[#008069] text-xs p-3.5 outline-none text-[#111b21] placeholder-[#667781] font-semibold min-h-[70px] resize-none"
@@ -805,18 +809,21 @@ export const SidebarLeft = ({ closeMobileSidebar }) => {
               </div>
 
               {/* Action buttons */}
-              <div className="flex justify-between items-center pt-4 border-t border-slate-200/80">
-                <Button
+              <div className="flex items-center justify-between pt-4 border-t border-slate-200/80">
+                <button
                   type="button"
-                  variant="outline"
                   onClick={() => setGroupStep(1)}
-                  className="rounded-xl border border-slate-200 font-extrabold text-xs text-[#111b21] gap-1.5"
+                  className="px-5 py-2.5 rounded-full text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200/80 hover:text-slate-900 border border-slate-200/60 active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer"
                 >
-                  <ArrowLeft className="h-4 w-4" /> Back
-                </Button>
-                <Button type="submit" variant="primary" className="rounded-xl font-extrabold text-xs bg-[#008069] hover:bg-[#006e5a] text-white shadow-md">
-                  Create Group Space
-                </Button>
+                  <ArrowLeft className="h-4 w-4" />
+                  <span>Back</span>
+                </button>
+                <button
+                  type="submit"
+                  className="px-6 py-2.5 rounded-full text-xs font-extrabold bg-gradient-to-r from-[#008069] to-[#00a884] hover:from-[#006e5a] hover:to-[#008069] text-white shadow-md shadow-[#008069]/25 hover:shadow-lg hover:shadow-[#008069]/35 active:scale-95 transition-all duration-200 cursor-pointer"
+                >
+                  Create Group
+                </button>
               </div>
             </div>
           )}

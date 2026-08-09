@@ -33,6 +33,7 @@ export const initSocket = (server) => {
                     }
 
                     const uIdStr = userId.toString();
+                    userActiveChats.delete(uIdStr);
                     if (!userSockets.has(uIdStr)) {
                         userSockets.set(uIdStr, new Set());
                     }
@@ -112,11 +113,12 @@ export const initSocket = (server) => {
                         );
                     } else if (conversation && conversation.participants) {
                         const pCount = conversation.participants.length;
+                        const neededReadCount = Math.max(1, pCount - 1);
                         await Message.updateMany(
                             {
                                 conversation: conversationObjectId,
                                 sender: { $ne: userObjectId },
-                                $expr: { $gte: [{ $size: { $ifNull: ["$readBy", []] } }, pCount] }
+                                $expr: { $gte: [{ $size: { $ifNull: ["$readBy", []] } }, neededReadCount] }
                             },
                             { $set: { status: "seen" } }
                         );

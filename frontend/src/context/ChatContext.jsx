@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { useAuth } from './AuthContext';
 import { io } from "socket.io-client";
 
@@ -15,6 +15,35 @@ export const ChatProvider = ({ children }) => {
   const [blockedUserIds, setBlockedUserIds] = useState([]);
   const [reports, setReports] = useState([]);
   const [socket, setSocket] = useState(null);
+  const deletedChatIdsRef = useRef(new Set());
+
+  const [starredMsgIds, setStarredMsgIds] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('starredMsgIds') || '[]');
+    } catch (e) {
+      return [];
+    }
+  });
+
+  const toggleStarMessage = (messageId) => {
+    setStarredMsgIds(prev => {
+      const isStarred = prev.includes(messageId);
+      const updated = isStarred
+        ? prev.filter(id => id !== messageId)
+        : [...prev, messageId];
+      try {
+        localStorage.setItem('starredMsgIds', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+  };
+
+  const clearAllStarredMessages = () => {
+    setStarredMsgIds([]);
+    try {
+      localStorage.setItem('starredMsgIds', '[]');
+    } catch (e) {}
+  };
 
   // Sync: Initialize socket connection when user logs in
   useEffect(() => {
@@ -44,10 +73,15 @@ export const ChatProvider = ({ children }) => {
     };
   }, [user]);
 
-  // Emit join-chat socket event when activeChatId changes or socket connects
+  // Emit join-chat or leave-chat socket event when activeChatId changes or socket connects
   useEffect(() => {
-    if (socket && activeChatId && user) {
-      socket.emit("join-chat", { userId: user.id || user._id, chatId: activeChatId });
+    if (socket && user) {
+      const uId = user.id || user._id;
+      if (activeChatId) {
+        socket.emit("join-chat", { userId: uId, chatId: activeChatId });
+      } else {
+        socket.emit("leave-chat", { userId: uId });
+      }
     }
   }, [socket, activeChatId, user]);
 
@@ -73,6 +107,10 @@ export const ChatProvider = ({ children }) => {
     if (!socket) return;
 
     const handleReceiveMessage = (message) => {
+      if (message.chatId && deletedChatIdsRef.current.has(message.chatId)) {
+        deletedChatIdsRef.current.delete(message.chatId);
+      }
+
       // 1. Append message to messages list state (avoid duplicates)
       setMessages(prev => {
         if (prev.some(m => m.id === message.id)) return prev;
@@ -81,17 +119,22 @@ export const ChatProvider = ({ children }) => {
 
       // 2. Update conversation's last message preview in chat list
       const isActiveChat = message.chatId === activeChatId;
-      setChats(prevChats =>
-        prevChats.map(c =>
-          c.id === message.chatId ? {
+      setChats(prevChats => {
+        const chatExists = prevChats.some(c => c.id === message.chatId || c.groupId === message.chatId);
+        if (!chatExists) {
+          loadChats();
+          return prevChats;
+        }
+        return prevChats.map(c =>
+          (c.id === message.chatId || c.groupId === message.chatId) ? {
             ...c,
             lastMessageId: message.id,
             createdTime: message.timestamp,
             lastMessage: message,
             unreadCount: isActiveChat ? 0 : (c.unreadCount || 0) + 1
           } : c
-        )
-      );
+        );
+      });
 
 
 
@@ -238,6 +281,23 @@ export const ChatProvider = ({ children }) => {
       );
     };
 
+    const handleMessageReactionUpdated = ({ messageId, emojiReactions }) => {
+      setMessages(prev =>
+        prev.map(m => m.id === messageId ? { ...m, emojiReactions } : m)
+      );
+    };
+
+    const handleUserDeleted = ({ userId, conversationIds }) => {
+      if (Array.isArray(conversationIds) && conversationIds.length > 0) {
+        setChats(prev => prev.filter(c => !conversationIds.includes(c.id)));
+        setMessages(prev => prev.filter(m => !conversationIds.includes(m.chatId)));
+        if (conversationIds.includes(activeChatId)) {
+          setActiveChatId(null);
+        }
+      }
+      loadChats();
+    };
+
     socket.on("receive-message", handleReceiveMessage);
     socket.on("user-typing", handleUserTyping);
     socket.on("user-stop-typing", handleUserStopTyping);
@@ -247,6 +307,8 @@ export const ChatProvider = ({ children }) => {
     socket.on("message-deleted", handleMessageDeleted);
     socket.on("blocked-disconnect", handleBlockedDisconnect);
     socket.on("group-updated", handleGroupUpdated);
+    socket.on("message-reaction-updated", handleMessageReactionUpdated);
+    socket.on("user-deleted", handleUserDeleted);
 
     return () => {
       socket.off("receive-message", handleReceiveMessage);
@@ -258,6 +320,8 @@ export const ChatProvider = ({ children }) => {
       socket.off("message-deleted", handleMessageDeleted);
       socket.off("blocked-disconnect", handleBlockedDisconnect);
       socket.off("group-updated", handleGroupUpdated);
+      socket.off("message-reaction-updated", handleMessageReactionUpdated);
+      socket.off("user-deleted", handleUserDeleted);
     };
   }, [socket, activeChatId, chats, allUsers]);
 
@@ -294,12 +358,46 @@ export const ChatProvider = ({ children }) => {
       if (res.ok) {
         const result = await res.json();
         if (result.success && result.data?.chats) {
-          setChats(result.data.chats);
+          const activeChats = (result.data.chats || []).filter(
+            c => !deletedChatIdsRef.current.has(c.id) && !deletedChatIdsRef.current.has(c._id)
+          );
+          setChats(activeChats);
         }
       }
     } catch (err) {
       console.error("Failed to load backend chats:", err);
     }
+  };
+
+  const mergeMessagesPreservingStatus = (prevMessages, newMessages, currentChatId) => {
+    const statusRank = { sent: 1, delivered: 2, seen: 3 };
+    const prevMap = new Map(
+      prevMessages
+        .filter(m => m.chatId === currentChatId || (m.chatId && m.chatId.toString() === currentChatId?.toString()))
+        .map(m => [m.id, m])
+    );
+
+    const otherMessages = prevMessages.filter(
+      m => m.chatId !== currentChatId && (m.chatId && m.chatId.toString() !== currentChatId?.toString())
+    );
+
+    const uniqueIncoming = (newMessages || []).filter(
+      (msg, index, self) => index === self.findIndex(t => t.id === msg.id)
+    );
+
+    const mergedIncoming = uniqueIncoming.map(m => {
+      const existing = prevMap.get(m.id);
+      if (existing) {
+        const existingRank = statusRank[existing.status] || 0;
+        const newRank = statusRank[m.status] || 0;
+        if (existingRank > newRank) {
+          return { ...m, status: existing.status };
+        }
+      }
+      return m;
+    });
+
+    return [...otherMessages, ...mergedIncoming];
   };
 
   // Sync: Load messages when activeChatId changes
@@ -318,13 +416,7 @@ export const ChatProvider = ({ children }) => {
         if (res.ok) {
           const result = await res.json();
           if (result.success && result.data?.messages) {
-            setMessages(prev => {
-              const filtered = prev.filter(m => m.chatId !== activeChatId);
-              const uniqueIncoming = (result.data.messages || []).filter(
-                (msg, index, self) => index === self.findIndex(t => t.id === msg.id)
-              );
-              return [...filtered, ...uniqueIncoming];
-            });
+            setMessages(prev => mergeMessagesPreservingStatus(prev, result.data.messages, activeChatId));
           }
         }
       } catch (err) {
@@ -395,13 +487,7 @@ export const ChatProvider = ({ children }) => {
             if (res.ok) {
               const result = await res.json();
               if (result.success && result.data?.messages) {
-                setMessages(prev => {
-                  const filtered = prev.filter(m => m.chatId !== activeChatId);
-                  const uniqueIncoming = (result.data.messages || []).filter(
-                    (msg, index, self) => index === self.findIndex(t => t.id === msg.id)
-                  );
-                  return [...filtered, ...uniqueIncoming];
-                });
+                setMessages(prev => mergeMessagesPreservingStatus(prev, result.data.messages, activeChatId));
               }
             }
           } catch (err) {
@@ -521,20 +607,34 @@ export const ChatProvider = ({ children }) => {
   };
 
   const editMessage = (messageId, newText) => {
+    const cleanNewText = (newText || "").trim();
+    const existingMsg = messages.find(m => m.id === messageId);
+    if (existingMsg && (existingMsg.text || "").trim() === cleanNewText) {
+      return;
+    }
+
     setMessages(prev =>
-      prev.map(m => (m.id === messageId ? { ...m, text: newText, edited: true } : m))
+      prev.map(m => (m.id === messageId ? { ...m, text: cleanNewText, edited: true } : m))
     );
 
     const saveEditOnBackend = async () => {
       try {
-        await authFetch(`http://localhost:5000/api/chats/messages/${messageId}`, {
+        const res = await authFetch(`http://localhost:5000/api/chats/messages/${messageId}`, {
           method: "PUT",
           headers: {
             "Content-Type": "application/json"
           },
-          body: JSON.stringify({ text: newText }),
+          body: JSON.stringify({ text: cleanNewText }),
           credentials: "include"
         });
+        if (res.ok) {
+          const result = await res.json();
+          if (result.success && result.data?.message) {
+            setMessages(prev =>
+              prev.map(m => (m.id === messageId ? result.data.message : m))
+            );
+          }
+        }
       } catch (err) {
         console.error("Failed to edit message on backend:", err);
       }
@@ -680,32 +780,34 @@ export const ChatProvider = ({ children }) => {
         if (m.id !== messageId) return m;
 
         const currentReactions = m.emojiReactions || [];
-        const existingReactionIndex = currentReactions.findIndex(r => r.emoji === emoji);
+        const exactMatch = currentReactions.find(
+          r => r.emoji === emoji && (r.userIds || []).includes('user_me')
+        );
 
-        let newReactions;
-        if (existingReactionIndex > -1) {
-          const reaction = currentReactions[existingReactionIndex];
-          const hasUserReacted = reaction.userIds.includes('user_me');
+        // Remove user_me from all reactions
+        let cleaned = currentReactions.map(r => {
+          const userIds = (r.userIds || []).filter(id => id !== 'user_me');
+          return {
+            ...r,
+            userIds,
+            count: userIds.length
+          };
+        }).filter(r => r.count > 0);
 
-          if (hasUserReacted) {
-            const newUserIds = reaction.userIds.filter(id => id !== 'user_me');
-            if (newUserIds.length === 0) {
-              newReactions = currentReactions.filter(r => r.emoji !== emoji);
-            } else {
-              newReactions = currentReactions.map(r =>
-                r.emoji === emoji ? { ...r, count: r.count - 1, userIds: newUserIds } : r
-              );
-            }
+        if (!exactMatch) {
+          const idx = cleaned.findIndex(r => r.emoji === emoji);
+          if (idx > -1) {
+            cleaned[idx] = {
+              ...cleaned[idx],
+              count: cleaned[idx].count + 1,
+              userIds: [...cleaned[idx].userIds, 'user_me']
+            };
           } else {
-            newReactions = currentReactions.map(r =>
-              r.emoji === emoji ? { ...r, count: r.count + 1, userIds: [...r.userIds, 'user_me'] } : r
-            );
+            cleaned.push({ emoji, count: 1, userIds: ['user_me'] });
           }
-        } else {
-          newReactions = [...currentReactions, { emoji, count: 1, userIds: ['user_me'] }];
         }
 
-        return { ...m, emojiReactions: newReactions };
+        return { ...m, emojiReactions: cleaned };
       })
     );
 
@@ -750,6 +852,7 @@ export const ChatProvider = ({ children }) => {
         const result = await res.json();
         if (result.success && result.data?.chat) {
           const newChat = result.data.chat;
+          if (newChat.id) deletedChatIdsRef.current.delete(newChat.id);
           setChats(prev => {
             if (prev.some(c => c.id === newChat.id)) return prev;
             return [newChat, ...prev];
@@ -1324,18 +1427,26 @@ export const ChatProvider = ({ children }) => {
   };
 
   const deleteChat = async (chatId) => {
+    if (!chatId) return;
+    deletedChatIdsRef.current.add(chatId.toString());
     setMessages(prev => prev.filter(m => m.chatId !== chatId));
     setChats(prevChats => prevChats.filter(c => c.id !== chatId));
     if (activeChatId === chatId) {
       setActiveChatId(null);
     }
     try {
-      await authFetch(`http://localhost:5000/api/chats/${chatId}/delete-chat`, {
+      const res = await authFetch(`http://localhost:5000/api/chats/${chatId}/delete-chat`, {
         method: "DELETE",
         credentials: "include"
       });
+      if (!res.ok) {
+        deletedChatIdsRef.current.delete(chatId.toString());
+        loadChats();
+      }
     } catch (err) {
       console.error("Failed to delete chat:", err);
+      deletedChatIdsRef.current.delete(chatId.toString());
+      loadChats();
     }
   };
 
@@ -1382,7 +1493,10 @@ export const ChatProvider = ({ children }) => {
         toggleFavoriteChat,
         toggleUnreadChat,
         clearChatMessages,
-        deleteChat
+        deleteChat,
+        starredMsgIds,
+        toggleStarMessage,
+        clearAllStarredMessages
       }}
     >
       {children}

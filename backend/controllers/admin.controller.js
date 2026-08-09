@@ -323,7 +323,38 @@ export const deleteUser = asyncHandler(async (req, res) => {
     }
   }
 
+  // 1. Find all direct conversations involving this user
+  const directConvs = await Conversation.find({
+    type: "direct",
+    participants: userId
+  });
+  const directConvIds = directConvs.map(c => c._id.toString());
+
+  if (directConvIds.length > 0) {
+    // Delete all messages in these direct conversations
+    await Message.deleteMany({ conversation: { $in: directConvIds } });
+    // Delete direct conversations from database
+    await Conversation.deleteMany({ _id: { $in: directConvIds } });
+  }
+
+  // 2. Remove user from all group conversations
+  await Conversation.updateMany(
+    { type: "group" },
+    {
+      $pull: {
+        participants: userId,
+        adminIds: userId
+      }
+    }
+  );
+
+  // 3. Delete user document from database
   await User.findByIdAndDelete(userId);
+
+  // 4. Emit real-time socket event so connected users immediately drop deleted chat & user
+  if (io) {
+    io.emit("user-deleted", { userId: userId.toString(), conversationIds: directConvIds });
+  }
 
   return res.status(200).json(
     new ApiResponse(200, "User account deleted successfully")

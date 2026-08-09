@@ -152,7 +152,7 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen, onBack }) =
   const {
     chats, activeChatId, getActiveChat, getChatMessages, sendMessage, uploadFile,
     editMessage, deleteMessage, deleteMessageForMe, deleteMessageForEveryone, togglePinnedMessage, addReaction, typingUsers, groups,
-    blockUser, unblockUser, reportUser, socket, blockedUserIds, selectChat
+    blockUser, unblockUser, reportUser, socket, blockedUserIds, selectChat, starredMsgIds, toggleStarMessage
   } = useChat();
   const { user, allUsers } = useAuth();
   const { showToast } = useNotifications();
@@ -203,11 +203,15 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen, onBack }) =
   // Message Info panel state (group chats only)
   const [msgInfoTarget, setMsgInfoTarget] = useState(null);
 
+  // Reaction Detail Modal state (WhatsApp style)
+  const [reactionDetailMsg, setReactionDetailMsg] = useState(null);
+  const [reactionDetailTab, setReactionDetailTab] = useState('all');
+  const [showModalEmojiPicker, setShowModalEmojiPicker] = useState(false);
+
   // Message dropdown menu states
   const [activeMsgMenuId, setActiveMsgMenuId] = useState(null);
   const [showEmojiPickerMsgId, setShowEmojiPickerMsgId] = useState(null);
   const [showFullEmojiPickerMsgId, setShowFullEmojiPickerMsgId] = useState(null);
-  const [starredMsgIds, setStarredMsgIds] = useState(() => JSON.parse(localStorage.getItem('starredMsgIds') || '[]'));
   const msgMenuRef = useRef(null);
 
   useEffect(() => {
@@ -235,11 +239,7 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen, onBack }) =
 
   const handleToggleStarMsg = (msgId) => {
     const isStarred = starredMsgIds.includes(msgId);
-    const updated = isStarred
-      ? starredMsgIds.filter(id => id !== msgId)
-      : [...starredMsgIds, msgId];
-    setStarredMsgIds(updated);
-    localStorage.setItem('starredMsgIds', JSON.stringify(updated));
+    toggleStarMessage(msgId);
     showToast(isStarred ? "Message Unstarred" : "Message Starred", isStarred ? "Removed from starred" : "Saved to starred messages", "info");
   };
 
@@ -588,8 +588,12 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen, onBack }) =
     }
 
     if (editingMessage) {
-      editMessage(editingMessage.id, inputText);
-      showToast("Message Edited", "Your message text has been updated.", "success");
+      const cleanNew = inputText.trim();
+      const cleanOld = (editingMessage.text || "").trim();
+      if (cleanNew !== cleanOld) {
+        editMessage(editingMessage.id, cleanNew);
+        showToast("Message Edited", "Your message text has been updated.", "success");
+      }
       setEditingMessage(null);
     } else {
       sendMessage(activeChatId, inputText, 'text', null, replyMessage?.id);
@@ -842,12 +846,10 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen, onBack }) =
                 safePinnedIndex % 3 === 1 ? 'bg-emerald-500' : 'bg-amber-500'
               }`} />
 
-            {/* Pin icon + content */}
-            <div className="flex-1 min-w-0 px-3 py-1.5">
-              <div className="flex items-center gap-1.5 mb-0.5">
-                <Pin className="h-3.5 w-3.5 text-[#54656f] shrink-0" />
-              </div>
-              <p className="text-xs text-[#111b21] font-medium truncate leading-snug">
+            {/* Pin icon + content in one line */}
+            <div className="flex-1 min-w-0 px-3 py-2 flex items-center gap-2">
+              <Pin className="h-3.5 w-3.5 text-[#54656f] shrink-0 transform rotate-45" />
+              <p className="text-xs text-[#111b21] font-semibold truncate leading-none">
                 {getPinnedPreview(currentPinnedMsg)}
               </p>
             </div>
@@ -1055,12 +1057,12 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen, onBack }) =
                                 className={`
                                 absolute z-[100] ${isMe ? 'right-0' : 'left-0'} 
                                 ${isNearBottom ? 'bottom-full mb-2 top-auto' : 'top-full mt-2 bottom-auto'} 
-                                shadow-2xl rounded-2xl overflow-hidden border border-slate-700/80 bg-slate-900 animate-in fade-in zoom-in-95
+                                shadow-2xl rounded-2xl overflow-hidden border border-slate-200/90 bg-white animate-in fade-in zoom-in-95
                               `}
                                 onClick={(e) => e.stopPropagation()}
                               >
                                 <EmojiPicker
-                                  theme="dark"
+                                  theme="light"
                                   onEmojiClick={(emojiData) => {
                                     addReaction(msg.id, emojiData.emoji);
                                     setShowFullEmojiPickerMsgId(null);
@@ -1084,14 +1086,14 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen, onBack }) =
                               ref={msgMenuRef}
                               onClick={(e) => e.stopPropagation()}
                               className={`
-                              absolute z-50 bg-slate-900/95 dark:bg-slate-950 backdrop-blur-md text-slate-200 rounded-xl shadow-2xl border border-slate-700/80 py-1.5 w-48 text-xs font-semibold select-none animate-in fade-in zoom-in-95 max-h-[70vh] overflow-y-auto no-scrollbar
+                              absolute z-50 bg-white text-[#111b21] rounded-xl shadow-2xl border border-slate-200/90 py-1.5 w-48 text-xs font-semibold select-none animate-in fade-in zoom-in-95 max-h-[70vh] overflow-y-auto no-scrollbar
                               ${isMe ? 'right-0' : 'left-0'}
                               ${isNearBottom ? 'bottom-full mb-1 top-auto' : 'top-full mt-1 bottom-auto'}
                             `}
                             >
                               {/* Quick reaction bar toggle */}
                               {showEmojiPickerMsgId === msg.id && (
-                                <div className="flex items-center justify-around p-2 border-b border-slate-800 relative">
+                                <div className="flex items-center justify-around p-2 border-b border-slate-100 relative">
                                   {quickEmojis.map((emoji) => (
                                     <button
                                       key={emoji}
@@ -1114,7 +1116,7 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen, onBack }) =
                                       setShowFullEmojiPickerMsgId(showFullEmojiPickerMsgId === msg.id ? null : msg.id);
                                       setActiveMsgMenuId(null);
                                     }}
-                                    className={`p-1 rounded-full text-slate-300 hover:text-white transition-colors cursor-pointer flex items-center justify-center shrink-0 ${showFullEmojiPickerMsgId === msg.id ? 'bg-indigo-600 text-white' : 'bg-slate-800 hover:bg-slate-700'}`}
+                                    className={`p-1 rounded-full text-slate-600 hover:text-[#111b21] transition-colors cursor-pointer flex items-center justify-center shrink-0 ${showFullEmojiPickerMsgId === msg.id ? 'bg-[#008069] text-white' : 'bg-slate-100 hover:bg-slate-200'}`}
                                     title="All Emojis"
                                   >
                                     <Plus className="h-3.5 w-3.5" />
@@ -1127,9 +1129,9 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen, onBack }) =
                                   setReplyMessage(msg);
                                   setActiveMsgMenuId(null);
                                 }}
-                                className="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-slate-800 transition-colors text-left"
+                                className="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-slate-100 transition-colors text-left text-[#111b21]"
                               >
-                                <Reply className="h-4 w-4 text-slate-400" />
+                                <Reply className="h-4 w-4 text-[#667781]" />
                                 Reply
                               </button>
 
@@ -1139,9 +1141,9 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen, onBack }) =
                                     handleCopyMsgText(msg.text);
                                     setActiveMsgMenuId(null);
                                   }}
-                                  className="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-slate-800 transition-colors text-left"
+                                  className="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-slate-100 transition-colors text-left text-[#111b21]"
                                 >
-                                  <Copy className="h-4 w-4 text-slate-400" />
+                                  <Copy className="h-4 w-4 text-[#667781]" />
                                   Copy
                                 </button>
                               )}
@@ -1151,9 +1153,9 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen, onBack }) =
                                   setShowEmojiPickerMsgId(showEmojiPickerMsgId === msg.id ? null : msg.id);
                                   setShowFullEmojiPickerMsgId(null);
                                 }}
-                                className="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-slate-800 transition-colors text-left"
+                                className="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-slate-100 transition-colors text-left text-[#111b21]"
                               >
-                                <Smile className="h-4 w-4 text-slate-400" />
+                                <Smile className="h-4 w-4 text-[#667781]" />
                                 React
                               </button>
 
@@ -1162,9 +1164,9 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen, onBack }) =
                                   setForwardMessage(msg);
                                   setActiveMsgMenuId(null);
                                 }}
-                                className="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-slate-800 transition-colors text-left"
+                                className="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-slate-100 transition-colors text-left text-[#111b21]"
                               >
-                                <Forward className="h-4 w-4 text-slate-400" />
+                                <Forward className="h-4 w-4 text-[#667781]" />
                                 Forward
                               </button>
 
@@ -1173,9 +1175,9 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen, onBack }) =
                                   handleTogglePinMessage(msg);
                                   setActiveMsgMenuId(null);
                                 }}
-                                className="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-slate-800 transition-colors text-left"
+                                className="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-slate-100 transition-colors text-left text-[#111b21]"
                               >
-                                <Pin className="h-4 w-4 text-slate-400" />
+                                <Pin className="h-4 w-4 text-[#667781]" />
                                 {(activeChat?.pinnedMessageIds || []).some(p => p.id === msg.id) ? "Unpin" : "Pin"}
                               </button>
 
@@ -1184,9 +1186,9 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen, onBack }) =
                                   handleToggleStarMsg(msg.id);
                                   setActiveMsgMenuId(null);
                                 }}
-                                className="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-slate-800 transition-colors text-left"
+                                className="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-slate-100 transition-colors text-left text-[#111b21]"
                               >
-                                <Star className={`h-4 w-4 ${starredMsgIds.includes(msg.id) ? 'text-amber-400 fill-amber-400' : 'text-slate-400'}`} />
+                                <Star className={`h-4 w-4 ${starredMsgIds.includes(msg.id) ? 'text-amber-400 fill-amber-400' : 'text-[#667781]'}`} />
                                 {starredMsgIds.includes(msg.id) ? "Unstar" : "Star"}
                               </button>
 
@@ -1205,7 +1207,7 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen, onBack }) =
                                     }
                                     showToast("Report Submitted", "Message reported to administrator for review.", "warning");
                                   }}
-                                  className="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-slate-800 transition-colors text-left text-amber-400"
+                                  className="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-slate-100 transition-colors text-left text-amber-600 font-bold"
                                 >
                                   <AlertTriangle className="h-4 w-4" />
                                   Report
@@ -1219,7 +1221,7 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen, onBack }) =
                                     setMsgInfoTarget(msg);
                                     setActiveMsgMenuId(null);
                                   }}
-                                  className="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-slate-800 transition-colors text-left text-indigo-400"
+                                  className="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-slate-100 transition-colors text-left text-[#008069] font-bold"
                                 >
                                   <Info className="h-4 w-4" />
                                   Message Info
@@ -1233,14 +1235,14 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen, onBack }) =
                                     setInputText(msg.text);
                                     setActiveMsgMenuId(null);
                                   }}
-                                  className="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-slate-800 transition-colors text-left"
+                                  className="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-slate-100 transition-colors text-left text-[#111b21]"
                                 >
-                                  <Edit2 className="h-4 w-4 text-slate-400" />
+                                  <Edit2 className="h-4 w-4 text-[#667781]" />
                                   Edit
                                 </button>
                               )}
 
-                              <div className="my-1 border-t border-slate-800" />
+                              <div className="my-1 border-t border-slate-100" />
 
                               <button
                                 onClick={() => {
@@ -1248,7 +1250,7 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen, onBack }) =
                                   setDeleteModalOpen(true);
                                   setActiveMsgMenuId(null);
                                 }}
-                                className="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-slate-800 transition-colors text-left text-rose-400 font-bold"
+                                className="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-slate-100 transition-colors text-left text-rose-600 font-bold"
                               >
                                 <Trash2 className="h-4 w-4" />
                                 Delete
@@ -1354,35 +1356,42 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen, onBack }) =
                             </div>
                           )}
 
-                          {/* Floating Emoji Reaction with NO background */}
-                          {msg.emojiReactions && msg.emojiReactions.length > 0 && (
-                            <div
-                              className="absolute -bottom-2.5 left-1.5 z-10 flex items-center gap-0.5 bg-transparent border-0 shadow-none select-none cursor-pointer hover:scale-115 transition-transform duration-200"
-                            >
-                              {msg.emojiReactions.map((r, i) => {
-                                const userHasReacted = r.userIds.includes('user_me');
-                                return (
-                                  <button
-                                    key={i}
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      addReaction(msg.id, r.emoji);
-                                    }}
-                                    className={`flex items-center justify-center bg-transparent border-0 leading-none transition-transform cursor-pointer ${userHasReacted ? 'scale-110' : 'hover:scale-110'}`}
-                                    title={`Reacted with ${r.emoji}`}
-                                  >
-                                    <span className="text-xs sm:text-[13px] leading-none shrink-0 drop-shadow-xs">{r.emoji}</span>
-                                    {r.count > 1 && (
-                                      <span className="text-[8.5px] font-black text-slate-700 dark:text-slate-200 ml-0.5">
-                                        {r.count}
-                                      </span>
-                                    )}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          )}
+                          {/* WhatsApp style Reaction Badge under message / photo */}
+                          {msg.emojiReactions && msg.emojiReactions.length > 0 && (() => {
+                            const totalReactionCount = msg.emojiReactions.reduce((acc, r) => acc + (r.count || (r.userIds ? r.userIds.length : 0)), 0);
+                            const myReaction = msg.emojiReactions.find(r => (r.userIds || []).includes('user_me'));
+
+                            return (
+                              <div
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setReactionDetailMsg(msg);
+                                  setReactionDetailTab('all');
+                                }}
+                                className={`
+                                  absolute -bottom-3 ${isMe ? 'right-2' : 'left-2'} z-20
+                                  inline-flex items-center gap-1 px-2 py-0.5 rounded-full
+                                  bg-[#ffffff] border border-[#d1d7db] text-[#111b21]
+                                  shadow-[0_1px_3px_rgba(11,20,26,0.18)] select-none cursor-pointer
+                                  hover:scale-105 active:scale-95 transition-all duration-150
+                                `}
+                                title={myReaction ? `Reacted with ${myReaction.emoji} - Click to see all` : "View reactions"}
+                              >
+                                <div className="flex items-center gap-0.5">
+                                  {msg.emojiReactions.slice(0, 3).map((r, i) => (
+                                    <span key={i} className="text-xs sm:text-[13px] leading-none shrink-0 drop-shadow-2xs">
+                                      {r.emoji}
+                                    </span>
+                                  ))}
+                                </div>
+                                {totalReactionCount > 1 && (
+                                  <span className="text-[10px] font-extrabold text-[#54656f] pl-0.5">
+                                    {totalReactionCount}
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          })()}
                         </div>
 
                         {/* Timestamp & read receipt info */}
@@ -1476,12 +1485,12 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen, onBack }) =
           {/* Recorder bar panel */}
           {isBlocked ? (
             <div className="p-1 select-none w-full">
-              <div className="flex items-center justify-between gap-3 w-full bg-slate-100/90 dark:bg-slate-800/90 rounded-full px-4 py-2 border border-slate-200/80 dark:border-slate-700/80 shadow-2xs">
+              <div className="flex items-center justify-between gap-3 w-full bg-[#f0f2f5] rounded-full px-4 py-2.5 border border-[#e9edef] shadow-2xs">
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="p-1.5 rounded-full bg-rose-500/15 text-rose-600 dark:text-rose-400 shrink-0">
+                  <div className="p-1.5 rounded-full bg-rose-500/10 text-rose-600 shrink-0">
                     <UserX className="h-4 w-4" />
                   </div>
-                  <span className="text-xs font-bold text-[#111b21] dark:text-slate-200 truncate">
+                  <span className="text-xs font-bold text-[#111b21] truncate">
                     You blocked this contact. Tap Unblock to resume conversation.
                   </span>
                 </div>
@@ -1500,13 +1509,13 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen, onBack }) =
               </div>
             </div>
           ) : isGroupBlocked ? (
-            <div className="bg-amber-50 dark:bg-amber-950/40 p-4 rounded-2xl flex items-center justify-center text-center text-xs font-bold text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60 select-none shadow-xs leading-relaxed gap-2">
+            <div className="bg-amber-50/80 p-3.5 rounded-2xl flex items-center justify-center text-center text-xs font-bold text-amber-700 border border-amber-200/80 select-none shadow-2xs leading-relaxed gap-2">
               <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
               <span>This group has been suspended by the administrator. Sending messages is disabled.</span>
             </div>
           ) : isMessagingRestricted ? (
-            <div className="bg-slate-100 dark:bg-slate-800/80 p-4 rounded-2xl flex items-center justify-center text-center text-xs font-bold text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-750 select-none shadow-xs leading-relaxed gap-2">
-              <Lock className="h-4 w-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
+            <div className="bg-[#f0f2f5] p-3.5 rounded-2xl flex items-center justify-center text-center text-xs font-medium text-[#54656f] border border-[#e9edef] select-none shadow-2xs leading-relaxed gap-2">
+              <Lock className="h-4 w-4 text-[#667781] shrink-0" />
               <span>Only admins can send messages to this group.</span>
             </div>
           ) : isRecording ? (
@@ -1910,12 +1919,12 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen, onBack }) =
                 setDeleteModalOpen(false);
                 setTargetDeleteMessage(null);
               }}
-              className="w-full text-left p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              className="w-full text-left p-3.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 transition-colors cursor-pointer"
             >
-              <div className="text-xs font-bold text-slate-900 dark:text-white">
+              <div className="text-xs font-bold text-slate-900">
                 Delete for me
               </div>
-              <div className="text-[10px] text-slate-400 font-medium">
+              <div className="text-[10px] text-slate-500 font-medium">
                 Remove this message from your view on this device
               </div>
             </button>
@@ -1930,9 +1939,9 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen, onBack }) =
                   setDeleteModalOpen(false);
                   setTargetDeleteMessage(null);
                 }}
-                className="w-full text-left p-3.5 rounded-xl border border-rose-200 dark:border-rose-900/50 bg-rose-50/50 dark:bg-rose-950/20 hover:bg-rose-100/50 dark:hover:bg-rose-900/30 transition-colors cursor-pointer"
+                className="w-full text-left p-3.5 rounded-xl border border-rose-200 bg-rose-50/50 hover:bg-rose-100/50 transition-colors cursor-pointer"
               >
-                <div className="text-xs font-bold text-rose-600 dark:text-rose-400">
+                <div className="text-xs font-bold text-rose-600">
                   Delete for everyone
                 </div>
                 <div className="text-[10px] text-rose-500/80 font-medium">
@@ -1942,12 +1951,12 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen, onBack }) =
             )}
           </div>
 
-          <div className="flex justify-end pt-3 border-t border-slate-100 dark:border-slate-800">
+          <div className="flex justify-end pt-3 border-t border-slate-100">
             <Button
               type="button"
               variant="outline"
               onClick={() => { setDeleteModalOpen(false); setTargetDeleteMessage(null); }}
-              className="rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-extrabold"
+              className="rounded-xl border border-slate-200 text-xs font-extrabold text-slate-700 bg-white hover:bg-slate-50"
             >
               Cancel
             </Button>
@@ -1960,6 +1969,183 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen, onBack }) =
         message={msgInfoTarget}
         onClose={() => setMsgInfoTarget(null)}
       />
+
+      {/* 😃 WhatsApp Style Reactions Detail Modal */}
+      <Modal
+        isOpen={!!reactionDetailMsg}
+        onClose={() => {
+          setReactionDetailMsg(null);
+          setReactionDetailTab('all');
+          setShowModalEmojiPicker(false);
+        }}
+        title={`${(() => {
+          const reactions = reactionDetailMsg?.emojiReactions || [];
+          const seen = new Set();
+          reactions.forEach(r => (r.userIds || []).forEach(id => seen.add(id === 'user_me' ? 'user_me' : id.toString())));
+          return seen.size;
+        })()} reaction${(() => {
+          const reactions = reactionDetailMsg?.emojiReactions || [];
+          const seen = new Set();
+          reactions.forEach(r => (r.userIds || []).forEach(id => seen.add(id === 'user_me' ? 'user_me' : id.toString())));
+          return seen.size === 1 ? '' : 's';
+        })()}`}
+        size="sm"
+      >
+        {reactionDetailMsg && (() => {
+          const reactions = reactionDetailMsg.emojiReactions || [];
+
+          // Deduplicate reactions per user (each user ID gets exactly 1 reaction entry)
+          const seenUserIds = new Set();
+          const userReactionList = [];
+
+          for (let i = reactions.length - 1; i >= 0; i--) {
+            const r = reactions[i];
+            const uids = r.userIds || [];
+            for (let j = uids.length - 1; j >= 0; j--) {
+              const uid = uids[j];
+              const normId = uid === 'user_me' ? 'user_me' : uid.toString();
+              if (!seenUserIds.has(normId)) {
+                seenUserIds.add(normId);
+                userReactionList.unshift({
+                  emoji: r.emoji,
+                  userId: normId
+                });
+              }
+            }
+          }
+
+          const totalCount = userReactionList.length;
+
+          // Compute exact count per emoji tab after user deduplication
+          const emojiTabCounts = {};
+          userReactionList.forEach(item => {
+            emojiTabCounts[item.emoji] = (emojiTabCounts[item.emoji] || 0) + 1;
+          });
+
+          const distinctEmojiTabs = Object.keys(emojiTabCounts).map(emoji => ({
+            emoji,
+            count: emojiTabCounts[emoji]
+          }));
+
+          const filteredList = reactionDetailTab === 'all'
+            ? userReactionList
+            : userReactionList.filter(item => item.emoji === reactionDetailTab);
+
+          return (
+            <div className="space-y-3 text-left select-none p-1">
+              {/* Tab Header Bar */}
+              <div className="flex items-center gap-2 overflow-x-auto pb-0 border-b border-[#e9edef] no-scrollbar">
+                {/* 1. Add / Change Emoji Reaction button (+) */}
+                <button
+                  type="button"
+                  onClick={() => setShowModalEmojiPicker(prev => !prev)}
+                  className={`
+                    p-1.5 rounded-full text-xs font-bold transition-all cursor-pointer shrink-0 flex items-center justify-center h-7 w-7 mb-1.5
+                    ${showModalEmojiPicker
+                      ? 'bg-[#008069] text-white shadow-xs'
+                      : 'bg-[#f0f2f5] text-[#54656f] hover:bg-[#e9edef] hover:text-[#008069]'
+                    }
+                  `}
+                  title="Add or replace reaction emoji"
+                >
+                  <Plus className="h-4 w-4" />
+                </button>
+
+                {/* 2. Individual Emoji Tabs */}
+                {distinctEmojiTabs.map((r, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => {
+                      setReactionDetailTab(r.emoji);
+                      setShowModalEmojiPicker(false);
+                    }}
+                    className={`
+                      px-3 py-2 text-xs font-bold transition-all cursor-pointer shrink-0 flex items-center gap-1.5 border-b-2
+                      ${reactionDetailTab === r.emoji && !showModalEmojiPicker
+                        ? 'border-[#008069] text-[#008069] font-extrabold'
+                        : 'border-transparent text-[#54656f] hover:text-[#111b21]'
+                      }
+                    `}
+                  >
+                    <span className="text-sm leading-none">{r.emoji}</span>
+                    <span className="text-[11px] font-semibold text-[#667781]">{r.count}</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Inline Full Emoji Picker when (+) button is clicked */}
+              {showModalEmojiPicker && (
+                <div className="p-1 bg-white rounded-2xl border border-[#e9edef] shadow-md my-2 overflow-hidden">
+                  <EmojiPicker
+                    theme="light"
+                    onEmojiClick={(emojiData) => {
+                      addReaction(reactionDetailMsg.id, emojiData.emoji);
+                      setShowModalEmojiPicker(false);
+                      setReactionDetailMsg(null);
+                    }}
+                    searchPlaceholder="Choose new reaction..."
+                    width="100%"
+                    height={280}
+                  />
+                </div>
+              )}
+
+              {/* Members List */}
+              {!showModalEmojiPicker && (
+                <div className="max-h-64 overflow-y-auto space-y-2 pr-1 no-scrollbar">
+                  {filteredList.map((item, idx) => {
+                    const isMe = item.userId === 'user_me' || item.userId === user?.id || item.userId === user?._id?.toString();
+                    const targetUser = isMe
+                      ? user
+                      : allUsers.find(u => u.id === item.userId || u._id?.toString() === item.userId) || { name: 'Member' };
+
+                    return (
+                      <div
+                        key={idx}
+                        onClick={() => {
+                          if (isMe) {
+                            addReaction(reactionDetailMsg.id, item.emoji);
+                            setReactionDetailMsg(null);
+                          }
+                        }}
+                        className={`
+                          p-3 rounded-2xl flex items-center justify-between transition-all border
+                          ${isMe
+                            ? 'bg-[#e7fce3] border-[#008069]/30 hover:bg-[#dcf8d6] cursor-pointer'
+                            : 'bg-white border-[#e9edef] hover:bg-[#f5f6f6]'
+                          }
+                        `}
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <Avatar
+                            src={targetUser?.avatar}
+                            name={targetUser?.name || "Member"}
+                            size="sm"
+                            color={targetUser?.avatarColor}
+                          />
+                          <div className="text-left min-w-0">
+                            <div className="text-xs font-bold text-[#111b21] truncate">
+                              {isMe ? "You" : (targetUser?.name || "Member")}
+                            </div>
+                            <div className={`text-[11px] font-medium truncate mt-0.5 ${isMe ? 'text-[#008069] font-bold' : 'text-[#667781]'}`}>
+                              {isMe ? "Click to remove" : (targetUser?.phone || targetUser?.statusText || "Member")}
+                            </div>
+                          </div>
+                        </div>
+
+                        <span className="text-2xl shrink-0 pl-2">
+                          {item.emoji}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })()}
+      </Modal>
 
     </div>
   );
