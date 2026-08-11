@@ -114,8 +114,6 @@ const conversationSchema = new mongoose.Schema(
         },
       },
     ],
-    // Tracks the timestamp when each participant joined the group.
-    // Key = userId string, Value = Date they were added/joined.
     memberJoinedAt: {
       type: Map,
       of: Date,

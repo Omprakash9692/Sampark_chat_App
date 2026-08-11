@@ -1,63 +1,39 @@
 import express from "express";
-import {
-  register,
-  registerAdmin,
-  login,
-  getMe,
-  logout,
-  verifyEmail,
-  resendVerification,
-  updateProfile,
-  getAllUsers,
-  toggleBlockUserForMe,
-  forgotPassword,
-  resetPassword
-} from "../controllers/auth.controller.js";
-import {
-  getAdminStats,
-  toggleBlockUser,
-  deleteUser,
-  createReport,
-  getReports,
-  updateReportStatus,
-  getAllGroups,
-  toggleBlockGroup,
-  deleteGroup
-} from "../controllers/admin.controller.js";
+import {register,registerAdmin,login,getMe,logout,verifyEmail,resendVerification,forgotPassword,resetPassword} from "../controllers/auth.controller.js";
+import {getAdminStats,toggleBlockUser,deleteUser,createReport,getReports,updateReportStatus,getAllGroups,toggleBlockGroup,deleteGroup} from "../controllers/admin.controller.js";
 import { protect, adminOnly } from "../middleware/auth.middleware.js";
-import { upload } from "../middleware/upload.middleware.js";
+import userRoutes from "./user.routes.js";
 
-const router = express.Router();
+const authRouter = express.Router();
 
-// Public routes
-router.post("/register", register);
-router.post("/register-admin", registerAdmin);
-router.post("/login", login);
-router.post("/logout", logout);
-router.post("/forgot-password", forgotPassword);
-router.post("/reset-password", resetPassword);
+// User management routes
+authRouter.use("/", userRoutes);
 
-// Protected routes
-router.get("/me", protect, getMe);
-router.post("/verify-email", protect, verifyEmail);
-router.put("/update-profile", protect, upload.single("avatar"), updateProfile);
-router.get("/users", protect, getAllUsers);
-router.put("/block/:userId", protect, toggleBlockUserForMe);
+// Public auth routes
+authRouter.post("/register", register);
+authRouter.post("/register-admin", registerAdmin);
+authRouter.post("/login", login);
+authRouter.post("/logout", logout);
+authRouter.post("/forgot-password", forgotPassword);
+authRouter.post("/reset-password", resetPassword);
+authRouter.post("/resend-verification", resendVerification);
 
-// Public resend — 
-router.post("/resend-verification", resendVerification);
+// Protected auth routes
+authRouter.get("/me", protect, getMe);
+authRouter.post("/verify-email", protect, verifyEmail);
 
 // Admin compliance & moderation routes
-router.get("/admin/stats", protect, adminOnly, getAdminStats);
-router.put("/admin/users/:userId/block", protect, adminOnly, toggleBlockUser);
-router.delete("/admin/users/:userId", protect, adminOnly, deleteUser);
-router.get("/admin/reports", protect, adminOnly, getReports);
-router.put("/admin/reports/:reportId/status", protect, adminOnly, updateReportStatus);
-router.get("/admin/groups", protect, adminOnly, getAllGroups);
-router.put("/admin/groups/:groupId/block", protect, adminOnly, toggleBlockGroup);
-router.delete("/admin/groups/:groupId", protect, adminOnly, deleteGroup);
+authRouter.get("/admin/stats", protect, adminOnly, getAdminStats);
+authRouter.put("/admin/users/:userId/block", protect, adminOnly, toggleBlockUser);
+authRouter.delete("/admin/users/:userId", protect, adminOnly, deleteUser);
+authRouter.get("/admin/reports", protect, adminOnly, getReports);
+authRouter.put("/admin/reports/:reportId/status", protect, adminOnly, updateReportStatus);
+authRouter.get("/admin/groups", protect, adminOnly, getAllGroups);
+authRouter.put("/admin/groups/:groupId/block", protect, adminOnly, toggleBlockGroup);
+authRouter.delete("/admin/groups/:groupId", protect, adminOnly, deleteGroup);
 
 // Incident reporting routes
-router.post("/reports", protect, createReport);
+authRouter.post("/reports", protect, createReport);
 
-export default router;
+export default authRouter;
+

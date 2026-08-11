@@ -1,492 +1,275 @@
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
-import ApiError from "../utils/ApiError.js";
-import ApiResponse from "../utils/ApiResponse.js";
-import asyncHandler from "../utils/asyncHandler.js";
-import { generateAccessToken } from "../utils/generateToken.js";
 import { sendVerificationEmail } from "../services/email.service.js";
-import { uploadToCloudinary } from "../config/cloudinary.js";
 
-const isProduction = process.env.NODE_ENV === "production";
-
-// Cookie configuration
-const cookieOptions = {
-  httpOnly: true,
-  secure: isProduction,
-  sameSite: isProduction ? "none" : "lax",
-  path: "/",
-  maxAge: 24 * 60 * 60 * 1000
+// Token Helper
+const generateAccessToken = (userId) => {
+  return jwt.sign(
+    { userId },
+    process.env.JWT_ACCESS_SECRET,
+    { expiresIn: "7d" }
+  );
 };
 
-// 1. Register
-export const register = asyncHandler(async (req, res) => {
-  const { name, email, password, phone } = req.body;
-  if (!name || !email || !password) {
-    throw new ApiError(400, "All fields (name, email, password) are required");
-  }
-  const existingUser = await User.findOne({ email: email.toLowerCase().trim() });
-  if (existingUser) {
-    throw new ApiError(400, "User with this email already exists");
-  }
-  if (phone && phone.trim()) {
-    const cleanPhone = phone.trim();
-    const normalizedPhone = cleanPhone.replace(/[\s\-\(\)]/g, "");
-    const existingUsers = await User.find({ phone: { $exists: true, $ne: "" } });
-    const phoneExists = existingUsers.some(u => {
-      if (!u.phone || typeof u.phone !== "string" || !u.phone.trim()) return false;
-      const uPhoneNormalized = u.phone.trim().replace(/[\s\-\(\)]/g, "");
-      return uPhoneNormalized === normalizedPhone || u.phone.trim() === cleanPhone;
-    });
-    if (phoneExists) {
-      throw new ApiError(400, "Phone number already exists. Please try a different number.");
-    }
-  }
-  const hashedPassword = await bcrypt.hash(password, 10);
-  // Generate 6-digit confirmation code
-  const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
-  const verificationCodeExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 mins expir
-  const user = await User.create({
-    name,
-    email: email.toLowerCase().trim(),
-    password: hashedPassword,
-    phone: phone ? phone.trim() : "",
-    role: "user", // Strict User registration
-    isVerified: false,
-    verificationCode,
-    verificationCodeExpires
-  });
-  // Log verification code for development 
-  console.log(`[DEBUG] Verification Code for ${email}: ${verificationCode}`);
-  await sendVerificationEmail(email, name, verificationCode);
-  const accessToken = generateAccessToken(user._id);
-  res.cookie("accessToken", accessToken, cookieOptions);
-  return res.status(201).json(
-    new ApiResponse(201, "User registered successfully", {
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: "User", 
-        isVerified: user.isVerified,
-        avatar: user.avatar?.url || "",
-        bio: user.bio || "",
-        phone: user.phone || ""
-      },
-      token: accessToken
-    })
-  );
+
+// User Formatter
+const formatUser = u => ({
+  id: u._id,
+  name: u.name,
+  email: u.email,
+  role: u.role ? u.role.charAt(0).toUpperCase() + u.role.slice(1) : "User",
+  isVerified: u.isVerified,
+  avatar: u.avatar?.url || "",
+  bio: u.bio || "",
+  phone: u.phone || "",
+  ...(u.blockedUsers ? { blockedUsers: u.blockedUsers.map(id => id.toString()) } : {})
 });
 
-// 2. Register Admin (used for Postman - sets role: 'admin')
-export const registerAdmin = asyncHandler(async (req, res) => {
-  const { name, email, password, phone } = req.body;
-  if (!name || !email || !password) {
-    throw new ApiError(400, "All fields (name, email, password) are required");
-  }
-  const existingUser = await User.findOne({ email: email.toLowerCase().trim() });
-  if (existingUser) {
-    throw new ApiError(400, "User with this email already exists");
-  }
-  if (phone && phone.trim()) {
-    const cleanPhone = phone.trim();
-    const normalizedPhone = cleanPhone.replace(/[\s\-\(\)]/g, "");
-    const existingUsers = await User.find({ phone: { $ne: "" } });
-    const phoneExists = existingUsers.some(u => {
-      if (!u.phone) return false;
-      const uPhoneNormalized = u.phone.trim().replace(/[\s\-\(\)]/g, "");
-      return uPhoneNormalized === normalizedPhone;
-    });
-    if (phoneExists) {
-      throw new ApiError(400, "Phone number already exists. Please try a different number.");
-    }
-  }
-  const hashedPassword = await bcrypt.hash(password, 10);
-  const user = await User.create({
-    name,
-    email: email.toLowerCase().trim(),
-    password: hashedPassword,
-    phone: phone ? phone.trim() : "",
-    role: "admin", // Admin registration
-    isVerified: true
-  });
-  const accessToken = generateAccessToken(user._id);
-  res.cookie("accessToken", accessToken, cookieOptions);
-  return res.status(201).json(
-    new ApiResponse(201, "Admin registered successfully", {
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: "Admin", 
-        isVerified: user.isVerified,
-        avatar: user.avatar?.url || "",
-        bio: user.bio || "",
-        phone: user.phone || ""
-      },
-      token: accessToken
-    })
-  );
+const genCode = () => ({
+  verificationCode: Math.floor(100000 + Math.random() * 900000).toString(),
+  verificationCodeExpires: new Date(Date.now() + 15 * 60 * 1000)
 });
 
-// 3. Login User/Admin (both can log in)
-export const login = asyncHandler(async (req, res) => {
-  const { email, password } = req.body;
-  if (!email || !password) {
-    throw new ApiError(400, "Email and password are required");
+const checkPhoneExists = async (phone, res) => {
+  if (!phone?.trim()) return false;
+  const clean = phone.trim();
+  const norm = clean.replace(/[\s\-\(\)]/g, "");
+  const users = await User.find({ phone: { $exists: true, $ne: "" } });
+  if (users.some(u => u.phone && (u.phone.trim().replace(/[\s\-\(\)]/g, "") === norm || u.phone.trim() === clean))) {
+    res.status(400).json({ success: false,
+ message: "Phone number already exists. Please try a different number." });
+    return true;
   }
-  const cleanEmail = email.toString().toLowerCase().trim();
-  const user = await User.findOne({ email: cleanEmail }).select("+password");
-  if (!user) {
-    throw new ApiError(401, "Invalid credentials");
-  }
-  const isPasswordValid = await bcrypt.compare(password, user.password);
-  if (!isPasswordValid) {
-    throw new ApiError(401, "Invalid credentials");
-  }
-  if (user.isBlocked) {
-    throw new ApiError(403, "Your account has been suspended by the administrator");
-  }
+  return false;
+};
 
-  // If user email is not verified, ensure verification code is active and send email
-  if (!user.isVerified) {
-    if (!user.verificationCode || !user.verificationCodeExpires || new Date() > user.verificationCodeExpires) {
-      const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
-      const verificationCodeExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 mins expiry
-      user.verificationCode = verificationCode;
-      user.verificationCodeExpires = verificationCodeExpires;
-      await user.save();
-      console.log(`[DEBUG] Verification Code for ${user.email}: ${verificationCode}`);
-      await sendVerificationEmail(user.email, user.name, verificationCode);
-    }
-  }
-
-  const accessToken = generateAccessToken(user._id);
-  res.cookie("accessToken", accessToken, cookieOptions);
-  // Capitalize role for frontend compatibility
-  const capitalizedRole = user.role.charAt(0).toUpperCase() + user.role.slice(1);
-  return res.status(200).json(
-    new ApiResponse(200, "Logged in successfully", {
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: capitalizedRole,
-        isVerified: user.isVerified,
-        avatar: user.avatar?.url || "",
-        bio: user.bio || "",
-        phone: user.phone || "",
-        blockedUsers: user.blockedUsers ? user.blockedUsers.map(id => id.toString()) : []
-      },
-      token: accessToken
-    })
-  );
-});
-
-
-// 5. Get Current User Info 
-export const getMe = asyncHandler(async (req, res) => {
-  const user = req.user;
-  const capitalizedRole = user.role.charAt(0).toUpperCase() + user.role.slice(1);
-
-  return res.status(200).json(
-    new ApiResponse(200, "User details fetched successfully", {
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: capitalizedRole,
-        isVerified: user.isVerified,
-        avatar: user.avatar?.url || "",
-        bio: user.bio || "",
-        phone: user.phone || "",
-        blockedUsers: user.blockedUsers ? user.blockedUsers.map(id => id.toString()) : []
-      }
-    })
-  );
-});
-
-// 6. Logout (Clear cookies)
-export const logout = asyncHandler(async (req, res) => {
-  let token = req.cookies?.accessToken;
-  if (!token && req.headers.authorization?.startsWith("Bearer")) {
-    token = req.headers.authorization.split(" ")[1];
-  }
-
-  if (token) {
-    try {
-      const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
-      await User.findByIdAndUpdate(decoded.userId, { isOnline: false, lastSeen: new Date() });
-    } catch (err) {
-      console.log("Token verification during logout:", err.message);
-    }
-  }
-
-  res.clearCookie("accessToken", cookieOptions);
-
-  return res.status(200).json(
-    new ApiResponse(200, "Logged out successfully")
-  );
-});
-
-// 7. Verify Email
-export const verifyEmail = asyncHandler(async (req, res) => {
-  const { code, email } = req.body;
-  let user = req.user;
-
-  if (!user && email) {
-    user = await User.findOne({ email: email.toLowerCase().trim() });
-  }
-
-  if (!user) {
-    throw new ApiError(404, "User not found");
-  }
-
-  if (!code) {
-    throw new ApiError(400, "Verification code is required");
-  }
-
-  if (user.verificationCode !== code) {
-    throw new ApiError(400, "Invalid verification code");
-  }
-
-  if (user.verificationCodeExpires && new Date() > user.verificationCodeExpires) {
-    throw new ApiError(400, "Verification code has expired");
-  }
-
-  user.isVerified = true;
-  user.verificationCode = null;
-  user.verificationCodeExpires = null;
-  await user.save();
-
-  const capitalizedRole = user.role.charAt(0).toUpperCase() + user.role.slice(1);
-
-  return res.status(200).json(
-    new ApiResponse(200, "Account verified successfully", {
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: capitalizedRole,
-        isVerified: user.isVerified,
-        avatar: user.avatar?.url || "",
-        bio: user.bio || "",
-        phone: user.phone || ""
-      }
-    })
-  );
-});
-
-// 8. Resend Verification Code 
-export const resendVerification = asyncHandler(async (req, res) => {
-  const { email } = req.body;
-
-  if (!email) {
-    throw new ApiError(400, "Email is required to resend verification code");
-  }
-  const user = await User.findOne({ email: email.toLowerCase().trim() });
-  if (!user) {
-    return res.status(200).json(
-      new ApiResponse(200, "If your email is registered, a new code has been sent")
-    );
-  }
-
-  if (user.isVerified) {
-    throw new ApiError(400, "Account is already verified");
-  }
-
-  const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
-  const verificationCodeExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 mins expiry
-
+const sendCodeAndSave = async (user, label = "Verification") => {
+  const { verificationCode, verificationCodeExpires } = genCode();
   user.verificationCode = verificationCode;
   user.verificationCodeExpires = verificationCodeExpires;
   await user.save();
-
-  console.log(`[DEBUG] Resent Verification Code for ${user.email}: ${verificationCode}`);
   await sendVerificationEmail(user.email, user.name, verificationCode);
+};
 
-  return res.status(200).json(
-    new ApiResponse(200, "Verification code resent successfully")
-  );
-});
-
-// Forgot Password
-export const forgotPassword = asyncHandler(async (req, res) => {
-  const { email } = req.body;
-  if (!email) {
-    throw new ApiError(400, "Email is required");
-  }
-
-  const user = await User.findOne({ email: email.toLowerCase().trim() });
-  if (!user) {
-    // Return generic success to prevent email enumeration
-    return res.status(200).json(
-      new ApiResponse(200, "If your email is registered, a password reset link has been sent")
-    );
-  }
-
-  const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
-  const verificationCodeExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 mins expiry
-
-  user.verificationCode = verificationCode;
-  user.verificationCodeExpires = verificationCodeExpires;
-  await user.save();
-
-  console.log(`[DEBUG] Forgot Password Code for ${user.email}: ${verificationCode}`);
-  await sendVerificationEmail(user.email, user.name, verificationCode);
-
-  return res.status(200).json(
-    new ApiResponse(200, "If your email is registered, a password reset link has been sent")
-  );
-});
-
-// Reset Password
-export const resetPassword = asyncHandler(async (req, res) => {
-  const { email, code, password } = req.body;
-
-  if (!email || !code || !password) {
-    throw new ApiError(400, "Email, code, and new password are required");
-  }
-
-  const cleanEmail = email.toString().toLowerCase().trim();
-  const cleanCode = code.toString().trim();
-
-  const user = await User.findOne({ email: cleanEmail });
-  if (!user) {
-    throw new ApiError(400, "Invalid email or verification code");
-  }
-
-  if (!user.verificationCode || user.verificationCode.toString().trim() !== cleanCode) {
-    throw new ApiError(400, "Invalid verification code");
-  }
-
-  if (!user.verificationCodeExpires || new Date() > new Date(user.verificationCodeExpires)) {
-    throw new ApiError(400, "Verification code has expired. Please request a new code.");
-  }
-
-  const hashedPassword = await bcrypt.hash(password, 10);
-  
-  user.password = hashedPassword;
-  user.verificationCode = null;
-  user.verificationCodeExpires = null;
-  await user.save();
-
-  return res.status(200).json(
-    new ApiResponse(200, "Password has been reset successfully")
-  );
-});
-
-// 9. Update Profile (Protected)
-export const updateProfile = asyncHandler(async (req, res) => {
-  const { name, bio } = req.body;
-  const user = req.user;
-
-  if (name) user.name = name;
-  if (bio !== undefined) user.bio = bio;
-  // email and phone are locked and cannot be changed after registration
-
-  if (req.file) {
-    try{
-      const cloudinaryResult = await uploadToCloudinary(req.file.path,"weChat/avatars");
-      user.avatar = {
-        public_id: cloudinaryResult.public_id,
-        url: cloudinaryResult.secure_url
-      };
-    } catch(error){
-      throw new ApiError(500,`Failed to upload avatar:${error.message}`);
+// 1. Register User / Admin Helper
+const registerUserWithRole = async (req, res, role, isVerified) => {
+  try {
+    const { name, email, password, phone } = req.body;
+    if (!name || !email || !password) {
+      return res.status(400).json({ success: false,
+ message: "All fields (name, email, password) are required" });
     }
+
+    const cleanEmail = email.toLowerCase().trim();
+    if (await User.exists({ email: cleanEmail })) {
+      return res.status(400).json({ success: false,
+ message: "User with this email already exists" });
+    }
+
+    const phoneExists = await checkPhoneExists(phone, res);
+    if (phoneExists) return;
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const { verificationCode, verificationCodeExpires } = genCode();
+
+    const user = await User.create({
+      name,
+      email: cleanEmail,
+      password: hashedPassword,
+      phone: phone ? phone.trim() : "",
+      role,
+      isVerified,
+      ...(isVerified ? {} : { verificationCode, verificationCodeExpires })
+    });
+
+    if (!isVerified) {
+      await sendVerificationEmail(cleanEmail, name, verificationCode);
+    }
+
+    const token = generateAccessToken(user._id);
+    return res.status(201).json({
+      success: true,
+      message: `${role === "admin" ? "Admin" : "User"} registered successfully`,
+      data: { user: formatUser(user), token }
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false,
+ message: error.message || "Registration failed" });
   }
+};
 
-  await user.save();
+export const register = (req, res) => registerUserWithRole(req, res, "user", false);
+export const registerAdmin = (req, res) => registerUserWithRole(req, res, "admin", true);
 
-  const capitalizedRole = user.role.charAt(0).toUpperCase() + user.role.slice(1);
+// 3. Login
+export const login = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ success: false,
+ message: "Email and password are required" });
+    }
 
-  return res.status(200).json(
-    new ApiResponse(200, "Profile updated successfully", {
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: capitalizedRole,
-        isVerified: user.isVerified,
-        avatar: user.avatar?.url || "",
-        bio: user.bio || "",
-        phone: user.phone || ""
+    const user = await User.findOne({ email: email.toString().toLowerCase().trim() }).select("+password");
+    if (!user || !(await bcrypt.compare(password, user.password))) {
+      return res.status(401).json({ success: false,
+ message: "Invalid credentials" });
+    }
+    if (user.isBlocked) {
+      return res.status(403).json({ success: false,
+ message: "Your account has been suspended by the administrator" });
+    }
+
+    if (!user.isVerified && (!user.verificationCode || !user.verificationCodeExpires || new Date() > user.verificationCodeExpires)) {
+      await sendCodeAndSave(user, "Verification");
+    }
+
+    const token = generateAccessToken(user._id);
+    return res.status(200).json({
+      success: true,
+      message: "Logged in successfully",
+      data: { user: formatUser(user), token }
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false,
+ message: error.message || "Login failed" });
+  }
+};
+
+// 4. Get Current User
+export const getMe = async (req, res) => {
+  try {
+    return res.status(200).json({
+      success: true,
+      message: "User details fetched successfully",
+      data: { user: formatUser(req.user) }
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false,
+ message: error.message || "Failed to fetch user details" });
+  }
+};
+
+// 5. Logout
+export const logout = async (req, res) => {
+  try {
+    const token = req.headers.authorization?.startsWith("Bearer") ? req.headers.authorization.split(" ")[1] : null;
+    if (token) {
+      try {
+        const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
+        await User.findByIdAndUpdate(decoded.userId, { isOnline: false, lastSeen: new Date() });
+      } catch (err) {
+        console.log("Token verification during logout:", err.message);
       }
-    })
-  );
-});
-
-// 10. Get All Users (Protected)
-export const getAllUsers = asyncHandler(async (req, res) => {
-  const myId = req.user._id;
-  const me = await User.findById(myId);
-  const isAdmin = me?.role === "admin";
-  const myBlockedUsers = me?.blockedUsers?.map(id => id.toString()) || [];
-
-  const users = await User.find({}, "name email avatar isOnline lastSeen role isBlocked phone bio blockedUsers");
-
-  const formattedUsers = users.map(u => {
-    const uIdStr = u._id.toString();
-
-    const hasBlockedMe = !isAdmin && (u.blockedUsers?.map(id => id.toString()).includes(myId.toString()) || false);
-    const haveIBlockedHim = !isAdmin && myBlockedUsers.includes(uIdStr);
-
-    return {
-      id: u._id,
-      name: u.name,
-      email: u.email,
-      avatar: hasBlockedMe ? "" : (u.avatar?.url || ""),
-      avatarColor: "from-indigo-500 to-purple-600",
-      role: u.role.charAt(0).toUpperCase() + u.role.slice(1),
-      isOnline: (hasBlockedMe || haveIBlockedHim) ? false : (u.isOnline || false),
-      lastSeen: (hasBlockedMe || haveIBlockedHim) ? null : u.lastSeen,
-      phone: u.phone || "",
-      bio: u.bio || "",
-      isBlocked: u.isBlocked || false,
-      statusText: u.isBlocked ? "Blocked" : (haveIBlockedHim ? "Blocked" : (hasBlockedMe ? "Offline" : (u.isOnline ? "Active" : "Offline")))
-    };
-  });
-
-  return res.status(200).json(
-    new ApiResponse(200, "Users fetched successfully", { users: formattedUsers })
-  );
-});
-
-// 11. Toggle User Block Status for Logged In User (Protected)
-export const toggleBlockUserForMe = asyncHandler(async (req, res) => {
-  const { userId } = req.params;
-  const myId = req.user._id;
-
-  if (userId === myId.toString()) {
-    throw new ApiError(400, "You cannot block yourself");
+    }
+    return res.status(200).json({ success: true,
+ message: "Logged out successfully" });
+  } catch (error) {
+    return res.status(500).json({ success: false,
+ message: error.message || "Logout failed" });
   }
+};
 
-  const me = await User.findById(myId);
-  if (!me) {
-    throw new ApiError(404, "User not found");
+// 6. Verify Email
+export const verifyEmail = async (req, res) => {
+  try {
+    const { code, email } = req.body;
+    const user = req.user || (email && await User.findOne({ email: email.toLowerCase().trim() }));
+    if (!user) return res.status(404).json({ success: false,
+ message: "User not found" });
+    if (!code) return res.status(400).json({ success: false,
+ message: "Verification code is required" });
+    if (user.verificationCode !== code) return res.status(400).json({ success: false,
+ message: "Invalid verification code" });
+    if (user.verificationCodeExpires && new Date() > user.verificationCodeExpires) {
+      return res.status(400).json({ success: false,
+ message: "Verification code has expired" });
+    }
+
+    user.isVerified = true;
+    user.verificationCode = null;
+    user.verificationCodeExpires = null;
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Account verified successfully",
+      data: { user: formatUser(user) }
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false,
+ message: error.message || "Verification failed" });
   }
+};
 
-  if (!me.blockedUsers) {
-    me.blockedUsers = [];
+// 7. Resend Verification Code
+export const resendVerification = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ success: false,
+ message: "Email is required to resend verification code" });
+
+    const user = await User.findOne({ email: email.toLowerCase().trim() });
+    if (!user) return res.status(200).json({ success: true,
+ message: "If your email is registered, a new code has been sent" });
+    if (user.isVerified) return res.status(400).json({ success: false,
+ message: "Account is already verified" });
+
+    await sendCodeAndSave(user, "Resent Verification");
+    return res.status(200).json({ success: true,
+ message: "Verification code resent successfully" });
+  } catch (error) {
+    return res.status(500).json({ success: false,
+ message: error.message || "Failed to resend verification code" });
   }
+};
 
-  const targetIdStr = userId.toString();
-  const existingIndex = me.blockedUsers.findIndex(id => id.toString() === targetIdStr);
-  let isBlockedNow = false;
+// 8. Forgot Password
+export const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ success: false,
+ message: "Email is required" });
 
-  if (existingIndex > -1) {
-    me.blockedUsers.splice(existingIndex, 1);
-  } else {
-    me.blockedUsers.push(userId);
-    isBlockedNow = true;
+    const user = await User.findOne({ email: email.toLowerCase().trim() });
+    if (user) await sendCodeAndSave(user, "Forgot Password");
+
+    return res.status(200).json({ success: true,
+ message: "If your email is registered, a password reset link has been sent" });
+  } catch (error) {
+    return res.status(500).json({ success: false,
+ message: error.message || "Forgot password request failed" });
   }
+};
 
-  await me.save();
+// 9. Reset Password
+export const resetPassword = async (req, res) => {
+  try {
+    const { email, code, password } = req.body;
+    if (!email || !code || !password) {
+      return res.status(400).json({ success: false,
+ message: "Email, code, and new password are required" });
+    }
 
-  return res.status(200).json(
-    new ApiResponse(200, `User ${isBlockedNow ? "blocked" : "unblocked"} successfully`, {
-      blockedUsers: me.blockedUsers.map(id => id.toString())
-    })
-  );
-});
+    const user = await User.findOne({ email: email.toString().toLowerCase().trim() });
+    if (!user || user.verificationCode?.toString().trim() !== code.toString().trim()) {
+      return res.status(400).json({ success: false,
+ message: "Invalid email or verification code" });
+    }
+    if (!user.verificationCodeExpires || new Date() > new Date(user.verificationCodeExpires)) {
+      return res.status(400).json({ success: false,
+ message: "Verification code has expired. Please request a new code." });
+    }
+
+    user.password = await bcrypt.hash(password, 10);
+    user.verificationCode = null;
+    user.verificationCodeExpires = null;
+    await user.save();
+    return res.status(200).json({ success: true,
+ message: "Password has been reset successfully" });
+  } catch (error) {
+    return res.status(500).json({ success: false,
+ message: error.message || "Reset password failed" });
+  }
+};

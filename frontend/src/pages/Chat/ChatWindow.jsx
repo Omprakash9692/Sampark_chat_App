@@ -199,6 +199,14 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen, onBack }) =
   const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
   const [uploadingFileName, setUploadingFileName] = useState('');
   const [uploadingFileType, setUploadingFileType] = useState('image');
+  const [pendingAttachment, setPendingAttachment] = useState(null);
+
+  useEffect(() => {
+    if (pendingAttachment?.previewUrl) {
+      URL.revokeObjectURL(pendingAttachment.previewUrl);
+    }
+    setPendingAttachment(null);
+  }, [activeChatId]);
 
   // Message Info panel state (group chats only)
   const [msgInfoTarget, setMsgInfoTarget] = useState(null);
@@ -566,8 +574,8 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen, onBack }) =
     }, 3000);
   };
 
-  const handleSend = () => {
-    if (!inputText.trim()) return;
+  const handleSend = async () => {
+    if (!inputText.trim() && !pendingAttachment) return;
 
     // Clear typing indicator instantly
     if (isTypingRef.current) {
@@ -595,10 +603,52 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen, onBack }) =
         showToast("Message Edited", "Your message text has been updated.", "success");
       }
       setEditingMessage(null);
-    } else {
-      sendMessage(activeChatId, inputText, 'text', null, replyMessage?.id);
-      if (replyMessage) setReplyMessage(null);
+      setInputText('');
+      return;
     }
+
+    let fileData = null;
+    let msgType = 'text';
+
+    if (pendingAttachment) {
+      setIsUploadingAttachment(true);
+      setUploadingFileName(pendingAttachment.name);
+      setUploadingFileType(pendingAttachment.type);
+      showToast("Uploading File", `Uploading ${pendingAttachment.name}...`, "info");
+
+      try {
+        const uploaded = await uploadFile(pendingAttachment.file);
+        if (!uploaded) {
+          showToast("Upload Failed", "Failed to upload file to server.", "danger");
+          setIsUploadingAttachment(false);
+          setUploadingFileName('');
+          return;
+        }
+
+        fileData = {
+          attachmentUrl: uploaded.url,
+          attachmentName: uploaded.name || pendingAttachment.name,
+          attachmentSize: formatFileSize(uploaded.size || pendingAttachment.file.size)
+        };
+        msgType = pendingAttachment.type;
+      } catch (err) {
+        showToast("Upload Failed", "An error occurred during file upload.", "danger");
+        setIsUploadingAttachment(false);
+        setUploadingFileName('');
+        return;
+      } finally {
+        setIsUploadingAttachment(false);
+        setUploadingFileName('');
+      }
+    }
+
+    sendMessage(activeChatId, inputText.trim(), msgType, fileData, replyMessage?.id);
+
+    if (pendingAttachment?.previewUrl) {
+      URL.revokeObjectURL(pendingAttachment.previewUrl);
+    }
+    setPendingAttachment(null);
+    if (replyMessage) setReplyMessage(null);
     setInputText('');
     setShowEmojiPicker(false);
   };
@@ -609,8 +659,6 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen, onBack }) =
       handleSend();
     }
   };
-
-
 
   const formatFileSize = (bytes) => {
     if (!bytes) return '0 KB';
@@ -629,63 +677,42 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen, onBack }) =
     }
   };
 
-  const handleImageSelection = async (e) => {
+  const handleImageSelection = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    setIsUploadingAttachment(true);
-    setUploadingFileName(file.name);
-    setUploadingFileType('image');
-    showToast("Sharing Image", `Uploading ${file.name}...`, "info");
-
-    try {
-      const uploaded = await uploadFile(file);
-      if (uploaded) {
-        sendMessage(activeChatId, '', 'image', {
-          attachmentUrl: uploaded.url,
-          attachmentName: uploaded.name
-        });
-        showToast("Image Shared", `${file.name} shared successfully.`, "success");
-      } else {
-        showToast("Sharing Failed", "Failed to upload image to server.", "danger");
-      }
-    } catch (err) {
-      showToast("Sharing Failed", "An error occurred during image upload.", "danger");
-    } finally {
-      setIsUploadingAttachment(false);
-      setUploadingFileName('');
-      e.target.value = '';
-    }
+    const previewUrl = URL.createObjectURL(file);
+    setPendingAttachment({
+      file,
+      previewUrl,
+      type: 'image',
+      name: file.name,
+      size: formatFileSize(file.size)
+    });
+    e.target.value = '';
   };
 
-  const handleFileSelection = async (e) => {
+  const handleFileSelection = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    setIsUploadingAttachment(true);
-    setUploadingFileName(file.name);
-    setUploadingFileType('file');
-    showToast("Sharing File", `Uploading ${file.name}...`, "info");
+    const isImage = file.type.startsWith('image/');
+    const previewUrl = isImage ? URL.createObjectURL(file) : null;
+    setPendingAttachment({
+      file,
+      previewUrl,
+      type: isImage ? 'image' : 'file',
+      name: file.name,
+      size: formatFileSize(file.size)
+    });
+    e.target.value = '';
+  };
 
-    try {
-      const uploaded = await uploadFile(file);
-      if (uploaded) {
-        sendMessage(activeChatId, '', 'file', {
-          attachmentUrl: uploaded.url,
-          attachmentName: uploaded.name,
-          attachmentSize: formatFileSize(uploaded.size || file.size)
-        });
-        showToast("File Shared", `${file.name} shared successfully.`, "success");
-      } else {
-        showToast("Sharing Failed", "Failed to upload file to server.", "danger");
-      }
-    } catch (err) {
-      showToast("Sharing Failed", "An error occurred during file upload.", "danger");
-    } finally {
-      setIsUploadingAttachment(false);
-      setUploadingFileName('');
-      e.target.value = '';
+  const handleRemovePendingAttachment = () => {
+    if (pendingAttachment?.previewUrl) {
+      URL.revokeObjectURL(pendingAttachment.previewUrl);
     }
+    setPendingAttachment(null);
   };
 
   // Filter messages if search is active
@@ -1558,6 +1585,53 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen, onBack }) =
                 onChange={handleFileSelection}
               />
 
+              {/* Pending Selected Attachment Preview Banner with Cross (Delete) Button */}
+              <AnimatePresence>
+                {pendingAttachment && !isUploadingAttachment && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 8, scale: 0.98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 8, scale: 0.98 }}
+                    className="mb-2.5 p-2.5 rounded-2xl bg-white border border-emerald-500/40 shadow-md flex items-center justify-between gap-3 text-xs select-none relative"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      {pendingAttachment.type === 'image' && pendingAttachment.previewUrl ? (
+                        <img
+                          src={pendingAttachment.previewUrl}
+                          alt="Selected preview"
+                          className="h-12 w-12 rounded-xl object-cover border border-slate-200 shrink-0 shadow-xs"
+                        />
+                      ) : (
+                        <div className="p-2.5 rounded-xl bg-rose-50 text-rose-600 border border-rose-200/60 shrink-0">
+                          <FileText className="h-5 w-5" />
+                        </div>
+                      )}
+                      <div className="min-w-0 text-left">
+                        <div className="flex items-center gap-2">
+                          <span className="font-extrabold text-[#111b21] truncate max-w-[220px]">
+                            {pendingAttachment.name}
+                          </span>
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 shrink-0">
+                            Ready to send
+                          </span>
+                        </div>
+                        <p className="text-[11px] font-medium text-[#667781] truncate mt-0.5">
+                          {pendingAttachment.size} • Click send button to share
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleRemovePendingAttachment}
+                      className="p-1.5 rounded-full bg-slate-100 hover:bg-rose-100 text-slate-500 hover:text-rose-600 transition-colors cursor-pointer shrink-0"
+                      title="Remove attachment"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
               {/* Active File Upload Progress Loader */}
               <AnimatePresence>
                 {isUploadingAttachment && (
@@ -1689,13 +1763,18 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen, onBack }) =
 
                 {/* 4. Mic / Send Icon on far right inside pill */}
                 <div className="shrink-0 flex items-center">
-                  {inputText.trim() ? (
+                  {inputText.trim() || pendingAttachment ? (
                     <button
                       type="button"
                       onClick={handleSend}
-                      className="p-2 rounded-full bg-[#00a884] hover:bg-[#008f6f] text-white cursor-pointer transition-all shadow-xs flex items-center justify-center h-8 w-8 transform active:scale-95 ml-1"
+                      disabled={isUploadingAttachment}
+                      className="p-2 rounded-full bg-[#00a884] hover:bg-[#008f6f] text-white cursor-pointer transition-all shadow-xs flex items-center justify-center h-8 w-8 transform active:scale-95 ml-1 disabled:opacity-50"
                     >
-                      <Send className="h-3.5 w-3.5 fill-current ml-0.5" />
+                      {isUploadingAttachment ? (
+                        <Loader2 className="h-4 w-4 animate-spin text-white" />
+                      ) : (
+                        <Send className="h-3.5 w-3.5 fill-current ml-0.5" />
+                      )}
                     </button>
                   ) : (
                     <Tooltip content="Hold to Record">

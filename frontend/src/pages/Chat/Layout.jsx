@@ -135,8 +135,8 @@ export const Layout = () => {
             absolute sm:static ${!activeChatId ? 'top-14 h-[calc(100vh-3.5rem)]' : 'top-0 h-full'} bottom-0 left-0 right-0 z-20 
             bg-white/92 backdrop-blur-xl
             transition-all duration-300 ease-in-out transform flex flex-col sm:h-full flex-shrink-0
-            w-full sm:w-80
-            ${desktopSidebarOpen ? 'sm:w-80 border-r border-slate-200/80' : 'sm:w-0 overflow-hidden border-r-0'}
+            w-full sm:w-[380px] md:w-[400px]
+            ${desktopSidebarOpen ? 'sm:w-[380px] md:w-[400px] border-r border-slate-200/80' : 'sm:w-0 overflow-hidden border-r-0'}
             ${mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full pointer-events-none sm:pointer-events-auto'}
             sm:translate-x-0
           `}>
