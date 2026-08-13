@@ -870,7 +870,7 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen, onBack }) =
           >
             {/* Coloured left accent bar (cycles colours for each pin slot) */}
             <div className={`w-1 shrink-0 rounded-sm my-1 ml-2 ${safePinnedIndex % 3 === 0 ? 'bg-indigo-500' :
-                safePinnedIndex % 3 === 1 ? 'bg-emerald-500' : 'bg-amber-500'
+              safePinnedIndex % 3 === 1 ? 'bg-emerald-500' : 'bg-amber-500'
               }`} />
 
             {/* Pin icon + content in one line */}
@@ -1367,8 +1367,8 @@ export const ChatWindow = ({ toggleRightSidebar, isRightSidebarOpen, onBack }) =
                           {msg.type === 'call' && (
                             <div className="flex items-center gap-3 p-3 mt-1.5 rounded-xl border-0 bg-black/5 text-slate-800 max-w-[245px]">
                               <div className={`h-9 w-9 rounded-lg flex items-center justify-center shrink-0 ${msg.text.includes("Missed")
-                                  ? "bg-rose-500/10 text-rose-500"
-                                  : "bg-emerald-500/10 text-emerald-500"
+                                ? "bg-rose-500/10 text-rose-500"
+                                : "bg-emerald-500/10 text-emerald-500"
                                 }`}>
                                 <Phone className="h-4.5 w-4.5" />
                               </div>
